@@ -17,6 +17,8 @@ LOG_DIR = os.path.join(HOMEBREW_DIR, "logs")
 DATA_DIR = os.path.join(HOMEBREW_DIR, "data", "xgmobile-manager")
 ENABLE_LOG = os.path.join(LOG_DIR, "xgmobile_manager_enable_latest.log")
 EJECT_LOG = os.path.join(LOG_DIR, "xgmobile_manager_eject_latest.log")
+HYBRID_LOG = os.path.join(LOG_DIR, "xgmobile_manager_supergfxd_hybrid.log")
+INTEGRATED_LOG = os.path.join(LOG_DIR, "xgmobile_manager_supergfxd_integrated.log")
 #REPAIR_LOG = os.path.join(LOG_DIR, "xgmobile_manager_repair.log")
 DEBUG_LOG = os.path.join(LOG_DIR, "xgmobile_manager_debug.log")
 INSTALL_LOG = os.path.join(LOG_DIR, "xgmobile_manager_install.log")
@@ -183,19 +185,19 @@ class Plugin:
     
     return await self._execute_script("egpu-eject", EJECT_LOG, vendor, os_type, LOG_DIR, DATA_DIR)
 
-  async def enable_supergfxctl(self):
+  async def hybrid_supergfxctl(self):
     vendor = await self.get_setting("gpu_vendor", "nvidia")
     os_type = self.get_os_type()
 
     if vendor == "nvidia" and os_type == "bazzite":
       return "Error: Wrong OS Image. Please use the bazzite-nvidia-deck image."
-    return await self._execute_script("supergfx-enable", ENABLE_LOG, vendor, os_type, LOG_DIR, DATA_DIR)
+    return await self._execute_script("supergfx-hybrid", HYBRID_LOG, vendor, os_type, LOG_DIR, DATA_DIR)
 
-  async def eject_supergfxctl(self):
+  async def integrated_supergfxctl(self):
     vendor = await self.get_setting("gpu_vendor", "nvidia")
     os_type = self.get_os_type()
     
-    return await self._execute_script("supergfx-eject", EJECT_LOG, vendor, os_type, LOG_DIR, DATA_DIR)
+    return await self._execute_script("supergfx-integrated", INTEGRATED_LOG, vendor, os_type, LOG_DIR, DATA_DIR)
 
   async def repair_services(self):
     vendor = await self.get_setting("gpu_vendor", "nvidia")

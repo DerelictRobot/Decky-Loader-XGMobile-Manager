@@ -30,7 +30,7 @@ export const QuickAccessContent = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [statusText, setStatusText] = useState("");
   const [pluginVersion, setPluginVersion] = useState("Loading...");
-  const [hasSupergfxctl, setHasSupergfxctl] = useState<boolean>(false);
+  //const [hasSupergfxctl, setHasSupergfxctl] = useState<boolean>(false);
   const [deviceType, setDeviceType] = useState<string>("unknown");
   //const [daemonActive, setDaemonActive] = useState<boolean>(true);
   
@@ -53,8 +53,8 @@ export const QuickAccessContent = () => {
         const os = await call("get_os_status") as string;
         setOsType(os);
         // call() returns the boolean directly from Python
-        const hasSgfx = await call("has_supergfxctl") as boolean;
-        setHasSupergfxctl(hasSgfx);
+        //const hasSgfx = await call("has_supergfxctl") as boolean;
+        //setHasSupergfxctl(hasSgfx);
         const device = await call("get_device_type") as string;
         setDeviceType(device);
       } catch (e) { 
@@ -153,7 +153,6 @@ export const QuickAccessContent = () => {
       setStatusText("");
     }
   };
-  
   const toggleVendor = async (val: boolean) => {
     const newVendor = val ? "nvidia" : "amd";
     setSelectedVendor(newVendor);
@@ -372,9 +371,9 @@ export const QuickAccessContent = () => {
               <ButtonItem
                 layout="inline"
                 disabled={isLoading}
-                onClick={() => handleAction("enable_supergfxctl", "Enabling")}
+                onClick={() => handleAction("hybrid_supergfxctl", "Switching to Hybrid")}
               >
-                Send Supergfxctl Hybrid command (ASUS Flow laptops) - beta
+                Send Supergfxctl Hybrid command - beta
               </ButtonItem>
             </PanelSectionRow>
 
@@ -382,9 +381,9 @@ export const QuickAccessContent = () => {
               <ButtonItem
                 layout="inline"
                 disabled={isLoading}
-                onClick={() => handleAction("eject_supergfxctl", "Ejecting")}
+                onClick={() => handleAction("integrated_supergfxctl", "Switching to Integrated")}
               >
-                Send Supergfxctl Integrated command (ASUS Flow laptops) - beta
+                Send Supergfxctl Integrated command - beta
               </ButtonItem>
             </PanelSectionRow>
           </PanelSection>
