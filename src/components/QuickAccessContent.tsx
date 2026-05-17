@@ -372,9 +372,9 @@ export const QuickAccessContent = () => {
               <ButtonItem
                 layout="inline"
                 disabled={isLoading}
-                onClick={() => handleAction("enable_supergfxctl", "Enabling")}
+                onClick={() => handleAction("hybrid_supergfxctl", "Switching to Hybrid")}
               >
-                Send Supergfxctl Hybrid command (ASUS Flow laptops) - beta
+                Send Supergfxctl Hybrid command - beta
               </ButtonItem>
             </PanelSectionRow>
 
@@ -382,9 +382,9 @@ export const QuickAccessContent = () => {
               <ButtonItem
                 layout="inline"
                 disabled={isLoading}
-                onClick={() => handleAction("eject_supergfxctl", "Ejecting")}
+                onClick={() => handleAction("integrated_supergfxctl", "Switching to Integrated")}
               >
-                Send Supergfxctl Integrated command (ASUS Flow laptops) - beta
+                Send Supergfxctl Integrated command - beta
               </ButtonItem>
             </PanelSectionRow>
           </PanelSection>

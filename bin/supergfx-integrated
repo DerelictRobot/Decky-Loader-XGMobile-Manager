@@ -4,7 +4,7 @@ OS_TYPE=$2
 LOG_DIR=$3
 DATA_DIR=$4
 
-exec > "$LOG_DIR/xgmobile_manager_eject_${VENDOR}.log" 2>&1
+exec > "$LOG_DIR/xgmobile_manager_supergfxd_integrated.log" 2>&1
 
 # --- SUPERGFXCTL NATIVE PATH ---
 if command -v supergfxctl >/dev/null 2>&1; then #if systemctl is-active --quiet supergfxd.service; then #command -v supergfxctl >/dev/null 2>&1 && [[ "$OS_TYPE" == *"bazzite"* || "$OS_TYPE" == "cachyos" ]]; then
@@ -14,8 +14,6 @@ if command -v supergfxctl >/dev/null 2>&1; then #if systemctl is-active --quiet 
 
   if supergfxctl -m Integrated; then
     echo "supergfxctl hardware disconnect successful."
-    echo "Executing detached SDDM restart..."
-    
     # FORK: Detaches from Decky Loader safely
     #( sleep 2 && systemctl restart sddm ) >/dev/null 2>&1 &
     #disown
@@ -23,11 +21,9 @@ if command -v supergfxctl >/dev/null 2>&1; then #if systemctl is-active --quiet 
     systemctl restart sddm --no-block
   
     echo "--- Eject Finished: Waiting for detached restart ---"
-    ln -sf "$LOG_DIR/xgmobile_manager_eject_${VENDOR}.log" "$LOG_DIR/xgmobile_manager_eject_latest.log"
     exit 0
   else
     echo "WARNING: supergfxctl crashed or failed to respond."
     echo "Please copy the logs and upload them to github for assistance."
-    ln -sf "$LOG_DIR/xgmobile_manager_eject_${VENDOR}.log" "$LOG_DIR/xgmobile_manager_eject_latest.log"
-  fi
+    fi
 fi
