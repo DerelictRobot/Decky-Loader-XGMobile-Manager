@@ -38,7 +38,7 @@ NVIDIA GameMode optimizations
 * **Beta Software:** This is a community-driven project and is currently in Beta. You are using this at your own risk.
 * **Data Corruption Risk:** This plugin modifies the read-only root filesystem of SteamOS when using NVIDIA only. It compiles kernel modules via DKMS, and manipulates `/etc/environment`. While it uses a highly protective "Bind Mount" architecture to prevent permanent system bricking, unexpected power loss during installation *could* result in a boot loop requiring a SteamOS reinstall.
 * **Sleep/Resume on BazziteOS with NVIDIA forces a Hard Reboot:** When putting the device to sleep with the NVIDIA eGPU active, the GPU cuts power to its Video RAM. Waking the device causes an internal fault on the XG Mobile and triggers the kernel panic. These are caused by upstream issues with the nvidia-open drivers that Bazzite team uses, and my plugin cannot do anything about this. It is recommended to disable sleep when on AC to avoid any complications. If you do find yourself in this scenario, to recover, hold down the power button until the device reboots.
-* **External Display Limitations:** Due to current upstream limitations in `gamescope`, **4K and 8K resolutions may not function correctly in Game Mode**. 1080p and 1440p are generally stable. X11 Desktop Mode provides wider resolution support. Toggle this in the Developer Settings in Steam
+* **External Display Limitations:** Due to current upstream limitations in `gamescope`, **4K/8K and UltraWide resolutions may not function correctly in Game Mode**. 1080p and 1440p are generally stable with the width being 2560p or less. Desktop Mode provides wider resolution support (Wayland and X11).
 * **Power Profile overwritten by other TDP controllers:** Other TDP controls (like SimpleDeckyTDP and HHD) will override the setting of the Power Profile. Use the dropdown in this app to monitor what the current power profile is (this plugin pings the xg mobile every 3 seconds to determine the current Power Profile setting).
 
 ---
@@ -123,14 +123,6 @@ When there is a SteamOS update available, follow this exact sequence for safety:
 
 ---
 
-## NVIDIA GameMode optimizations
-* **HDR STILL IN TESTING** 
-1. Disable HDR under Display in Steam Settings
-2. If the screen is constantly dimming on you, Enable Use Native Color Tempeture in Steam Display Settings.
-3. Enable VRR and Allow Screen Tearing (dont worry, the screen wont tear, this is needed for the way that NVIDIA communicates its layers to gamescope) in the QAM.
-
----
-
 ## 🛠️ Building From Source
 If you wish to contribute or build the plugin from your own development environment:
 
@@ -158,9 +150,7 @@ If you wish to contribute or build the plugin from your own development environm
 ## 🐛 Known Issues
 * **Sleep/Resume BazziteOS with NVIDIA forces a Hard Reboot:** When putting the device to sleep with the NVIDIA eGPU active, the GPU cuts power to its Video RAM. Waking the device causes an internal fault on the XG Mobile and triggers the kernel panic. To recover, hold down the power button until the device reboots.
 * **Boot Loop after SteamOS Update:** If you update SteamOS *without* running the Reset script first, the system may try to load orphaned kernel modules. Run the Reset script from recovery or TTY to fix.
-* **Live Logs "Initializing":** Occasionally the React UI polls faster than the Python backend can open the log file. Close the log viewer and reopen it.
 * **Internal Display still on:** When leaving the eGPU active and rebooting/shutdown in GameMode, the internal display stays on and displays the boot logo. This doesn't affect performance, but is actively being investigated.
-* **X11 SteamOS Desktop Mode Sleep Bug:** When resuming from sleep mode in Desktop X11 with NVIDIA eGPU on SteamOS, the resume script picks up and restarts the device in a broken GameMode environment. For now, disable sleep mode when on AC.
 * **Power Profile overwritten by other TDP controllers:** Other TDP controls (like SimpleDeckyTDP and HHD) will override the setting of the Power Profile. Use the dropdown in this app to monitor what the current power profile is (this plugin pings the xg mobile every 3 seconds to determine the current Power Profile setting).
 
 ---
@@ -204,7 +194,8 @@ If this tool saved you hours of troubleshooting or finally made your portable eG
 
 ## Pictures
 ![SteamOS version and NVIDIA driver version displayed in GameMode](assets/images/595-71-05-linux-6.18.25.png)
-![NVIDIA Settings and Readings in X11 Desktop](assets/images/x11-nvidia1.png)
-![NVIDIA Settings and Readings in X11 Desktop](assets/images/x11-nvidia2.png)
-![NVIDIA Settings and Readings in X11 Desktop](assets/images/x11-nvidia3.png)
+![NVIDIA Settings and Readings in Wayland Desktop. BazziteOS](assets/images/wayland-nvidia-bazzite1.png)
+![NVIDIA Settings and Readings in X11 Desktop. SteamOS](assets/images/x11-nvidia1.png)
+![NVIDIA Settings and Readings in X11 Desktop. SteamOS](assets/images/x11-nvidia2.png)
+![NVIDIA Settings and Readings in X11 Desktop. SteamOS](assets/images/x11-nvidia3.png)
 ![Example of the Activity Log](assets/images/activitylog.png)
