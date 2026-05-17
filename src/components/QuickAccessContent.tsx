@@ -153,7 +153,6 @@ export const QuickAccessContent = () => {
       setStatusText("");
     }
   };
-
   const toggleVendor = async (val: boolean) => {
     const newVendor = val ? "nvidia" : "amd";
     setSelectedVendor(newVendor);
