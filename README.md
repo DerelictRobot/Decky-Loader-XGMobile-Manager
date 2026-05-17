@@ -17,13 +17,13 @@ This plugin manages the complex hardware handshakes, dynamically compiles and in
 ---
 NVIDIA GameMode optimizations
 ## Table of Contents
-- [Important Disclaimers & Risks](#️-important-disclaimers--risks)
+- [Important Disclaimers & Risks](#-important-disclaimers--risks)
 - [Compatibility Matrix](#-compatibility-matrix)
-- [How It Works (Under the Hood)](#️-how-it-works-under-the-hood)
+- [How It Works (Under the Hood)](#-how-it-works-under-the-hood)
 - [Installation](#-installation)
 - [How To Use](#-how-to-use)
-- [NVIDIA GameMode optimizations](#️-nvidia-gamemode-optimizations)
-- [Building From Source](#️-building-from-source)
+- [NVIDIA GameMode Optimizations](#-nvidia-gamemode-optimizations)
+- [Building From Source](#-building-from-source)
 - [Known Issues](#-known-issues)
 - [Support & Troubleshooting](#-support--troubleshooting)
 - [Buy Me a Coffee](#-buy-me-a-coffee)
@@ -116,7 +116,7 @@ When there is a SteamOS update available, follow this exact sequence for safety:
 
 ---
 
-## NVIDIA GameMode optimizations
+## NVIDIA GameMode Optimizations
 * **HDR STILL IN TESTING** If you experience color issues, disable HDR under Display in Steam Settings.
 * **Auto-Dimming:** If the screen is constantly dimming on you, enable "Use Native Color Tempeture" in Steam Display Settings.
 * **Tearing/Vsync:** Enable VRR and Allow Screen Tearing in the Quick Access Menu. (Don't worry, the screen won't actually tear, this is required for how NVIDIA communicates its layers to Wayland/Gamescope).
