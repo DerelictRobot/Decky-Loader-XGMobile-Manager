@@ -259,9 +259,13 @@ class Plugin:
     log_map = {
       "enable": ENABLE_LOG,
       "eject": EJECT_LOG,
+      "hybrid": HYBRID_LOG,
+      "integrated": INTEGRATED_LOG,
       "install": INSTALL_LOG,
       #"repair": REPAIR_LOG,
       "uninstall": UNINSTALL_LOG,
+      "shortcuts": SHORTCUTS_LOG,
+      "sync": SYNC_LOG,
       "debug": DEBUG_LOG
     }
     path = log_map.get(log_type, ENABLE_LOG)

@@ -5,9 +5,13 @@ import { call } from "@decky/api";
 const LOG_OPTIONS: DropdownOption[] = [
   { data: 'enable', label: 'Enable Log' },
   { data: 'eject', label: 'Eject Log' },
+  { data: 'hybrid', label: 'Supergfx Hybrid Log' },
+  { data: 'integrated', label: 'Supergfx Integrated Log' },
   { data: 'install', label: 'NVIDIA Install Log' },
   //{ data: 'repair', label: 'Repair Services Log' },
   { data: 'uninstall', label: 'Reset Environment Log' },
+  { data: 'shortcuts', label: 'Install Desktop Shortcuts Log' },
+  { data: 'sync', label: 'Boot NVIDIA DRM sync Log' },
   { data: 'debug', label: 'Debug Logs' }
 ];
 
