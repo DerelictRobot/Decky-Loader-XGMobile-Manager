@@ -23,6 +23,8 @@ INTEGRATED_LOG = os.path.join(LOG_DIR, "xgmobile_manager_supergfxd_integrated.lo
 DEBUG_LOG = os.path.join(LOG_DIR, "xgmobile_manager_debug.log")
 INSTALL_LOG = os.path.join(LOG_DIR, "xgmobile_manager_install.log")
 UNINSTALL_LOG = os.path.join(LOG_DIR, "xgmobile_manager_uninstall.log")
+SHORTCUTS_LOG = os.path.join(LOG_DIR, "xgmobile_manager_create_shortcuts.log")
+SYNC_LOG = os.path.join(LOG_DIR, "xgmobile_manager_boot_sync.log")
 
 os.makedirs(os.path.join(DATA_DIR, "configs"), exist_ok=True)
 
@@ -96,45 +98,12 @@ class Plugin:
     """Returns True if supergfxctl is installed and in the system PATH."""
     return shutil.which("supergfxctl") is not None
 
-  async def get_version(self):
-    """Reads the version directly from plugin.json."""
-    try:
-      json_path = os.path.join(self.get_plugin_dir(), "plugin.json")
-      
-      with open(json_path, 'r') as f:
-        data = json.load(f)
-        return data.get('version', '0.2.0')
-    except Exception as e:
-      error(f"Error reading version: {e}")
-      return "0.2.0"
-
-  def get_os_type(self):
-    """Detects the host OS and validates the Bazzite NVIDIA image."""
-    try:
-      with open("/etc/os-release", "r") as f:
-        os_data = f.read().lower()
-                
-        if "bazzite" in os_data:
-          # Check if they actually installed the NVIDIA variant
-          if "nvidia" not in os_data:
-            return "bazzite"
-          return "bazzite-nvidia"
-        elif "cachyos" in os_data:
-          return "cachyos"
-        elif "steamos" in os_data:
-          return "steamos"
-        else:
-          return "unsupported"
-    except Exception:
-      return "unsupported"
-
-  async def get_os_status(self):
-    """Helper to pass the OS type to React on load."""
-    return self.get_os_type()
-
-  async def has_supergfxctl(self):
-    """Returns True if supergfxctl is installed and in the system PATH."""
-    return shutil.which("supergfxctl") is not None
+  async def create_desktop_shortcuts(self):
+    vendor = await self.get_setting("gpu_vendor", "nvidia")
+    desktop_flag = await self.get_setting("desktop_mode", "0") 
+    os_type = self.get_os_type()
+    
+    return await self._execute_script("create-shortcuts", SHORTCUTS_LOG, vendor, os_type, LOG_DIR, DATA_DIR, desktop_flag)
 
   async def _execute_script(self, script_name, log_path, *args):
     """
@@ -173,11 +142,12 @@ class Plugin:
 
   async def enable_egpu(self):
     vendor = await self.get_setting("gpu_vendor", "nvidia")
+    desktop_flag = await self.get_setting("desktop_mode", "0")
     os_type = self.get_os_type()
 
     if vendor == "nvidia" and os_type == "bazzite":
       return "Error: Wrong OS Image. Please use the bazzite-nvidia-deck image."
-    return await self._execute_script("egpu-enable", ENABLE_LOG, vendor, os_type, LOG_DIR, DATA_DIR)
+    return await self._execute_script("egpu-enable", ENABLE_LOG, vendor, os_type, LOG_DIR, DATA_DIR, desktop_flag)
 
   async def eject_egpu(self):
     vendor = await self.get_setting("gpu_vendor", "nvidia")
@@ -454,6 +424,17 @@ class Plugin:
 
     Plugin.settings = SettingsManager(name="settings", settings_directory=os.environ["DECKY_PLUGIN_SETTINGS_DIR"])
     await Plugin.read(self)
+
+    try:
+      # Check if the eGPU survived the reboot and is still active
+      gpu_state = await self.get_gpu_status()
+      vendor = await self.get_setting("gpu_vendor", "nvidia")
+      os_type = self.get_os_type()
+      if gpu_state.get("active") and vendor == "nvidia":
+        log("eGPU detected as active on boot. Running DRM node sync...")
+        await self._execute_script("egpu-sync", SYNC_LOG, vendor, os_type)
+    except Exception as e:
+      error(f"Boot DRM sync failed: {e}")
 
     log("XGMobile-Manager Backend Initialized.")
 

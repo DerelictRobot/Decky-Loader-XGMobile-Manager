@@ -3,6 +3,7 @@ VENDOR=$1 # Capture 'nvidia' or 'amd' from the plugin
 OS_TYPE=$2
 LOG_DIR=$3
 DATA_DIR=$4
+BOOT_TO_DESKTOP=$5
 SUPERGFX_TRIG=0
 #PRIMARY_USER=$(echo "$LOG_DIR" | cut -d/ -f3)
 PRIMARY_USER=$(ps -o user= -C steam | head -n 1 | xargs)
@@ -256,6 +257,16 @@ EOF"
     # No extra variables usually needed for AMD eGPUs on SteamOS
   fi
 fi
+
+if [ "$BOOT_TO_DESKTOP" == "1" ]; then
+  echo "Boot to Desktop flag detected. Queuing Plasma session..."
+  # This built-in command tells the OS to load KDE Plasma on the next UI start
+  steamos-session-select plasma
+else
+  # Explicitly queue Gamescope just in case it was left in Plasma mode
+  steamos-session-select gamescope
+fi
+
 echo "Refreshing DRM session..."
 systemctl start sddm --no-block
 

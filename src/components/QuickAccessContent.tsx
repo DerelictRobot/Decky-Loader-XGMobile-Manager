@@ -38,6 +38,7 @@ export const QuickAccessContent = () => {
   const [gpuStatus, setGpuStatus] = useState({ connected: false, active: false, vendor: "none" });
   const [telemetry, setTelemetry] = useState({ temp: "--", power: "--", vram: "--", util: "--" });
   const [selectedVendor, setSelectedVendor] = useState("nvidia");
+  const [selectedDesktopMode, setSelectedDesktopMode] = useState("0");
   const [osType, setOsType] = useState("steamos");
   const [powerProfile, setPowerProfile] = useState("Unknown");
   const showSleepWarning = gpuStatus.active && selectedVendor === 'nvidia' && (osType.includes('bazzite') || osType === 'cachyos');
@@ -48,6 +49,8 @@ export const QuickAccessContent = () => {
       try {
         const val = await call("get_setting", "gpu_vendor", "nvidia") as string;
         setSelectedVendor(val);
+        const desktopmode = await call("get_setting", "desktop_mode", "0") as string;
+        setSelectedDesktopMode(desktopmode);
         const ver = await call("get_version") as string;
         if (ver) setPluginVersion(ver);
         const os = await call("get_os_status") as string;
@@ -157,6 +160,11 @@ export const QuickAccessContent = () => {
     const newVendor = val ? "nvidia" : "amd";
     setSelectedVendor(newVendor);
     await call("set_setting", "gpu_vendor", newVendor ) as string;
+  };
+  const toggleDesktopMode = async (val: boolean) => {
+    const newDesktopMode = val ? "1" : "0";
+    setSelectedDesktopMode(newDesktopMode);
+    await call("set_setting", "desktop_mode", newDesktopMode ) as string;
   };
 
   const onResetClick = () => {
@@ -342,12 +350,32 @@ export const QuickAccessContent = () => {
                 onChange={toggleVendor}
               />
             </PanelSectionRow>
+            <PanelSectionRow>
+              <ToggleField
+                label="Switch to Desktop on Enable"
+                description="Turn on to reboot straight into Desktop Mode when running the Enable script. Recommended for 4K and Ultrawide resolutions."
+                // Disable if the hardware is active
+                disabled={gpuStatus.active || isLoading}
+                checked={selectedDesktopMode === "1"}
+                onChange={toggleDesktopMode}
+              />
+            </PanelSectionRow>
           </>
         )}
       </PanelSection>
 
       {/* SECTION 3: Maintenance */}
       <PanelSection title="Advanced">
+        <PanelSectionRow>
+          <ButtonItem
+            layout="inline"
+            description="Create Desktop shortcuts for enabling and ejecting the XG Mobile. Run this after selecting Vender type."
+            disabled={isLoading}
+            onClick={() => handleAction("create_desktop_shortcuts", "Creating Shortcuts")}
+          >
+            Create Desktop Shortcuts
+          </ButtonItem>
+        </PanelSectionRow>
         {/* Render Install button ONLY on SteamOS */}
         {osType === "steamos" && (
           <PanelSectionRow>

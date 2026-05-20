@@ -1,0 +1,52 @@
+#!/bin/bash
+VENDOR=$1
+OS_TYPE=$2
+PRIMARY_USER=$(ps -o user= -C steam | head -n 1 | xargs)
+[ -z "$PRIMARY_USER" ] && PRIMARY_USER="deck"
+
+echo "--- Boot DRM Sync Started at $(date) ---"
+
+# Graceful exit for AMD users
+if [ "$VENDOR" == "amd" ]; then
+  echo "AMD eGPU detected. Native amdgpu drivers do not require DRM environment sync."
+  echo "Sync complete (Skipped cleanly)."
+  exit 0
+fi
+
+if [[ "$OS_TYPE" == "steamos" || "$OS_TYPE" == *"cachyos"* ]]; then
+  # Foolproof detection of exact DRM nodes based on hardware vendor ID
+  for card in /sys/class/drm/card*; do
+    HW_VENDOR=$(cat $card/device/vendor 2>/dev/null)
+    if [ "$HW_VENDOR" == "0x10de" ]; then # NVIDIA ID
+      EGPU_CARD="/dev/dri/$(basename $card)"
+    elif [ "$HW_VENDOR" == "0x1002" ] || [ "$HW_VENDOR" == "0x1022" ]; then # AMD IDs
+      IGPU_CARD="/dev/dri/$(basename $card)"
+    fi
+  done
+
+  if [ -z "$EGPU_CARD" ] || [ -z "$IGPU_CARD" ]; then
+    echo "WARNING: Failed to detect both GPUs on the PCIe bus. Sync aborted."
+    exit 1
+  fi
+
+  echo "Updating environment variables with fresh boot nodes: $EGPU_CARD (NVIDIA) : $IGPU_CARD (AMD)"
+
+  # 1. Update the System-Wide Environment
+  steamos-readonly disable 2>/dev/null || true
+  sed -i 's|WLR_DRM_DEVICES=.*|WLR_DRM_DEVICES='$EGPU_CARD':'$IGPU_CARD'|' /etc/environment
+  steamos-readonly enable 2>/dev/null || true
+
+  # 2. Update the Isolated Plasma Environment
+  PLASMA_ENV_DIR="/home/$PRIMARY_USER/.config/plasma-workspace/env"
+  sudo -u $PRIMARY_USER bash -c "cat > '$PLASMA_ENV_DIR/xgmobile-nvidia-kwin.sh' << EOF
+#!/bin/bash
+export KWIN_DRM_DEVICES=$EGPU_CARD:$IGPU_CARD
+export GBM_BACKEND=nvidia-drm
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+EOF"
+  echo "SteamOS/CachyOS specific DRM environment sync complete."
+else
+  echo "Bazzite OS detected. Skipping."
+fi
+
+echo "Sync complete. Ready for Desktop Mode."
