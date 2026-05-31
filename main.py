@@ -18,7 +18,10 @@ HOMEBREW_DIR = os.path.abspath(os.path.join(PLUGIN_DIR, "../../"))
 LOG_DIR = os.path.join(HOMEBREW_DIR, "logs")
 DATA_DIR = os.path.join(HOMEBREW_DIR, "data", "xgmobile-manager")
 ENABLE_LOG = os.path.join(LOG_DIR, "xgmobile_manager_enable_latest.log")
+ENABLEDESKTOP_LOG = os.path.join(LOG_DIR, "xgmobile_manager_desktop_enable_request.log")
 EJECT_LOG = os.path.join(LOG_DIR, "xgmobile_manager_eject_latest.log")
+EJECTDESKTOP_LOG = os.path.join(LOG_DIR, "xgmobile_manager_desktop_eject_request.log")
+TRANSITION_LOG = os.path.join(LOG_DIR, "xgmobile_manager_transition.log")
 HYBRID_LOG = os.path.join(LOG_DIR, "xgmobile_manager_supergfxd_hybrid.log")
 INTEGRATED_LOG = os.path.join(LOG_DIR, "xgmobile_manager_supergfxd_integrated.log")
 #REPAIR_LOG = os.path.join(LOG_DIR, "xgmobile_manager_repair.log")
@@ -27,6 +30,7 @@ INSTALL_LOG = os.path.join(LOG_DIR, "xgmobile_manager_install.log")
 UNINSTALL_LOG = os.path.join(LOG_DIR, "xgmobile_manager_uninstall.log")
 SHORTCUTS_LOG = os.path.join(LOG_DIR, "xgmobile_manager_create_shortcuts.log")
 SYNC_LOG = os.path.join(LOG_DIR, "xgmobile_manager_boot_sync.log")
+PYTHONERROR_LOG = os.path.join(LOG_DIR, "xgmobile_manager_python_crash.log")
 
 os.makedirs(os.path.join(DATA_DIR, "configs"), exist_ok=True)
 
@@ -157,7 +161,7 @@ class Plugin:
 
   async def watch_eject_request(self):
     request_file = "/tmp/xgmobile_eject_request"
-    fallback_log = "/tmp/xgmobile_python_crash.log"
+    fallback_log = PYTHONERROR_LOG #"/tmp/xgmobile_python_crash.log"
     
     while True:
       if os.path.exists(request_file):
@@ -198,7 +202,7 @@ class Plugin:
             
           username = target_user.pw_name
           home_dir = target_user.pw_dir
-          desktop_log_path = f"{home_dir}/homebrew/logs/xgmobile_desktop_eject_request.log"
+          desktop_log_path = EJECTDESKTOP_LOG #f"{home_dir}/homebrew/logs/xgmobile_desktop_eject_request.log"
         
           def write_log(message):
             with open(desktop_log_path, "a") as f:
@@ -222,27 +226,27 @@ class Plugin:
           ], capture_output=True, text=True, check=False, env=sterile_env)
 
           desktopdefault = await self.get_setting("desktop_default", "0")
-          if desktopdefault == "1":
-            uid = target_user.pw_uid
-            write_log(f"Eject Desktop Link detected Desktop Default enabled for : {username}")
-            if os_type != "steamos":
-              write_log(f"Telling python to wait 5 seconds before sending gamescope command to switch back to GameMode")
-              await asyncio.sleep(5)
-            write_log(f"Running the command...")
-            safe_env = {
-              "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin",
-              "USER": username,
-              "HOME": home_dir,
-              "XDG_RUNTIME_DIR": f"/run/user/{uid}",
-              "DBUS_SESSION_BUS_ADDRESS": f"unix:path=/run/user/{uid}/bus"
-            }
-            result = subprocess.run(
-              ["sudo", "-E", "-u", username, "/usr/bin/steamos-session-select", "gamescope"],
-              capture_output=True,
-              text=True,
-              check=False,
-              env=safe_env
-            )
+          #if desktopdefault == "1":
+          uid = target_user.pw_uid
+          write_log(f"Eject Desktop Link detected Desktop Default enabled for : {username}")
+          if os_type != "steamos":
+            write_log(f"Telling python to wait 5 seconds before sending gamescope command to switch back to GameMode")
+            await asyncio.sleep(5)
+          write_log(f"Running the command...")
+          safe_env = {
+            "PATH": "/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin",
+            "USER": username,
+            "HOME": home_dir,
+            "XDG_RUNTIME_DIR": f"/run/user/{uid}",
+            "DBUS_SESSION_BUS_ADDRESS": f"unix:path=/run/user/{uid}/bus"
+          }
+          result = subprocess.run(
+            ["sudo", "-E", "-u", username, "/usr/bin/steamos-session-select", "gamescope"],
+            capture_output=True,
+            text=True,
+            check=False,
+            env=safe_env
+          )
 
           write_log(f"Command exited with code: {result.returncode}")
           if result.stdout: write_log("STDOUT:\n" + result.stdout.strip())
@@ -258,7 +262,7 @@ class Plugin:
 
   async def watch_enable_request(self):
     request_file = "/tmp/xgmobile_enable_request"
-    fallback_log = "/tmp/xgmobile_python_crash.log"
+    fallback_log = PYTHONERROR_LOG #"/tmp/xgmobile_python_crash.log"
     
     while True:
       if os.path.exists(request_file):
@@ -299,7 +303,7 @@ class Plugin:
             
           username = target_user.pw_name
           home_dir = target_user.pw_dir
-          desktop_log_path = f"{home_dir}/homebrew/logs/xgmobile_desktop_enable_request.log"
+          desktop_log_path = ENABLEDESKTOP_LOG #f"{home_dir}/homebrew/logs/xgmobile_desktop_enable_request.log"
         
           def write_log(message):
             with open(desktop_log_path, "a") as f:
@@ -421,7 +425,7 @@ class Plugin:
     return False
 
   async def trigger_desktop_mode(self):
-    fallback_log = "/tmp/xgmobile_python_crash.log"
+    fallback_log = PYTHONERROR_LOG #"/tmp/xgmobile_python_crash.log"
     
     try:
       # 1. Safe dynamic user resolution
@@ -458,7 +462,7 @@ class Plugin:
       os_type = self.get_os_type()
         
       # Now we have a guaranteed safe home directory to write to
-      log_path = f"{home_dir}/homebrew/logs/xgmobile_transition.log"
+      log_path = TRANSITION_LOG #f"{home_dir}/homebrew/logs/xgmobile_transition.log"
         
       def write_log(message):
         with open(log_path, "a") as f:
@@ -591,7 +595,10 @@ class Plugin:
     """Called by the frontend every 500ms. log_type can be 'repair' or 'install' or 'uninstall'."""
     log_map = {
       "enable": ENABLE_LOG,
+      "enabledesktop": ENABLEDESKTOP_LOG,
       "eject": EJECT_LOG,
+      "ejectdesktop": EJECTDESKTOP_LOG,
+      "transition": TRANSITION_LOG,
       "hybrid": HYBRID_LOG,
       "integrated": INTEGRATED_LOG,
       "install": INSTALL_LOG,
@@ -599,6 +606,7 @@ class Plugin:
       "uninstall": UNINSTALL_LOG,
       "shortcuts": SHORTCUTS_LOG,
       "sync": SYNC_LOG,
+      "python": PYTHONERROR_LOG,
       "debug": DEBUG_LOG
     }
     path = log_map.get(log_type, ENABLE_LOG)
@@ -682,7 +690,10 @@ class Plugin:
     """Reads logs for display in a modal."""
     log_map = {
       "enable": ENABLE_LOG,
+      "enabledesktop": ENABLEDESKTOP_LOG,
       "eject": EJECT_LOG,
+      "ejectdesktop": EJECTDESKTOP_LOG,
+      "transition": TRANSITION_LOG,
       "hybrid": HYBRID_LOG,
       "integrated": INTEGRATED_LOG,
       "install": INSTALL_LOG,
@@ -690,6 +701,7 @@ class Plugin:
       "uninstall": UNINSTALL_LOG,
       "shortcuts": SHORTCUTS_LOG,
       "sync": SYNC_LOG,
+      "python": PYTHONERROR_LOG,
       "debug": DEBUG_LOG
     }
     
