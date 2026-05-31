@@ -3,7 +3,6 @@ VENDOR=$1 # Capture 'nvidia' or 'amd' from the plugin
 OS_TYPE=$2
 LOG_DIR=$3
 DATA_DIR=$4
-BOOT_TO_DESKTOP=$5
 SUPERGFX_TRIG=0
 #PRIMARY_USER=$(echo "$LOG_DIR" | cut -d/ -f3)
 PRIMARY_USER=$(ps -o user= -C steam | head -n 1 | xargs)
@@ -61,11 +60,13 @@ if [[ "$OS_TYPE" == "steamos" || "$OS_TYPE" == *"cachyos"* ]];  then
     # Restore global terminal commands
     ln -sf "$REPO_ROOT/bin/egpu-enable" /usr/local/bin/egpu-enable
     ln -sf "$REPO_ROOT/bin/egpu-eject" /usr/local/bin/egpu-eject
-    chmod +x "$REPO_ROOT/bin/egpu-enable" "$REPO_ROOT/bin/egpu-eject"
+    ln -sf "$REPO_ROOT/bin/egpu-sync" /usr/local/bin/egpu-sync
+    chmod +x "$REPO_ROOT/bin/egpu-enable" "$REPO_ROOT/bin/egpu-eject" "$REPO_ROOT/bin/egpu-sync"
   
     # Copy background services
     cp "$REPO_ROOT/assets/services/"*.service /etc/systemd/system/ 2>/dev/null || true
-  
+    systemctl enable xgmobile-boot-sync.service
+
     if [ "$VENDOR" == "nvidia" ]; then
       echo "Restoring NVIDIA sleep services..."
       systemctl daemon-reload
@@ -257,18 +258,8 @@ EOF"
     # No extra variables usually needed for AMD eGPUs on SteamOS
   fi
 fi
-
-if [ "$BOOT_TO_DESKTOP" == "1" ]; then
-  echo "Boot to Desktop flag detected. Queuing Plasma session..."
-  # This built-in command tells the OS to load KDE Plasma on the next UI start
-  steamos-session-select plasma
-else
-  # Explicitly queue Gamescope just in case it was left in Plasma mode
-  steamos-session-select gamescope
-fi
-
 echo "Refreshing DRM session..."
-systemctl start sddm --no-block
+systemctl start sddm #--no-block
 
 #if [ $SUPERGFX_TRIG == 1 ]; then
 #  echo "Restarting supergfxctl..."
@@ -294,5 +285,5 @@ if command -v supergfxctl >/dev/null 2>&1; then
   fi
 fi
 
-echo "--- Enable Finished: Time for God Mode ---"
+echo "--- Enable Finished at $(date): Time for God Mode ---"
 sudo ln -sf "$LOG_DIR/xgmobile_manager_enable_${VENDOR}.log" $LOG_DIR/xgmobile_manager_enable_latest.log

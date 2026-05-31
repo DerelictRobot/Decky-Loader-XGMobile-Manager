@@ -39,6 +39,7 @@ export const QuickAccessContent = () => {
   const [telemetry, setTelemetry] = useState({ temp: "--", power: "--", vram: "--", util: "--" });
   const [selectedVendor, setSelectedVendor] = useState("nvidia");
   const [selectedDesktopMode, setSelectedDesktopMode] = useState("0");
+  const [selectedDesktopDefault, setSelectedDesktopDefault] = useState("0");
   const [osType, setOsType] = useState("steamos");
   const [powerProfile, setPowerProfile] = useState("Unknown");
   const showSleepWarning = gpuStatus.active && selectedVendor === 'nvidia' && (osType.includes('bazzite') || osType === 'cachyos');
@@ -51,6 +52,8 @@ export const QuickAccessContent = () => {
         setSelectedVendor(val);
         const desktopmode = await call("get_setting", "desktop_mode", "0") as string;
         setSelectedDesktopMode(desktopmode);
+        const desktopdefault = await call("get_setting", "desktop_default", "0") as string;
+        setSelectedDesktopDefault(desktopdefault);
         const ver = await call("get_version") as string;
         if (ver) setPluginVersion(ver);
         const os = await call("get_os_status") as string;
@@ -96,6 +99,15 @@ export const QuickAccessContent = () => {
     toaster.toast({ title: "XG Mobile", body: `Starting: ${label}...` });
 
     try {
+      if (selectedDesktopMode === "1" && method === "enable_egpu") {
+        //toaster.toast({ title: "Debug", body: "1. React is calling Python..." });
+        
+        const flagResult = await call("set_desktop_transition_flag") as string;
+        
+        toaster.toast({ title: "DesktopMode", body: `Setting Desktop Flag: ${flagResult}` });
+        
+        //await new Promise(resolve => setTimeout(resolve, 3000));
+      }
       const result = await call(method);
       toaster.toast({ title: "XG Mobile", body: `${label} Result: ${result}` });
       const newStatus = await call("get_gpu_status") as any;
@@ -110,24 +122,35 @@ export const QuickAccessContent = () => {
 
   const handleInstall = async () => {
     if (isLoading) return;
-    showModal(<LiveLogViewerModal logType="install" />);
     setIsLoading(true);
     setStatusText("Installing");
 
+    showModal(<LiveLogViewerModal logType="install" />);
+
     try {
       const result = (await call("install_nvidia")) as string;
-      if (result.includes("Failed") || result.includes("Error")) {
+      if (result.includes("ALREADY_INSTALLED")) {
+        toaster.toast({ 
+          title: "NVIDIA Setup", 
+          body: "Drivers are already installed. No reboot required.", 
+          duration: 4000 
+        });
+      } else if (result.includes("Failed") || result.includes("Error")) {
         toaster.toast({ 
           title: "NVIDIA Setup", 
           body: "Installation failed. Check the logs.", 
           duration: 5000 
         });
       } else {
-        toaster.toast({ 
-          title: "NVIDIA Setup", 
-          body: "Success! Please reboot your device." 
-        });
-        setNeedsReboot(true);
+        showModal(
+          <ConfirmModal
+            strTitle="Installation Complete"
+            strDescription="The NVIDIA drivers were successfully installed. The system must reboot. Reboot now?"
+            strOKButtonText="Restart Now"
+            onOK={() => { call("reboot_system"); }}
+            strCancelButtonText="Restart Later"
+          />
+        );
       }
     } catch (e) {
       toaster.toast({ title: "Error", body: "Plugin communication failed." });
@@ -165,6 +188,16 @@ export const QuickAccessContent = () => {
     const newDesktopMode = val ? "1" : "0";
     setSelectedDesktopMode(newDesktopMode);
     await call("set_setting", "desktop_mode", newDesktopMode ) as string;
+    //If they turned off the BootToDesktop, lets turn off DesktopDefault as well. 
+    if (newDesktopMode === "0") {
+      setSelectedDesktopDefault(newDesktopMode);
+      await call("set_setting", "desktop_default", newDesktopMode ) as string;
+    }
+  };
+  const toggleDesktopDefault = async (val: boolean) => {
+    const newDesktopDefault = val ? "1" : "0";
+    setSelectedDesktopDefault(newDesktopDefault);
+    await call("set_setting", "desktop_default", newDesktopDefault ) as string;
   };
 
   const onResetClick = () => {
@@ -175,15 +208,22 @@ export const QuickAccessContent = () => {
         strOKButtonText="Purge & Reset"
         onOK={() => { 
           setTimeout(async () => {
-            showModal(<LiveLogViewerModal logType="uninstall" />);
             setIsLoading(true);
+            showModal(<LiveLogViewerModal logType="uninstall" />);
             try {
               const result = await call("uninstall_nvidia") as string;
               if (result !== "Success") {
                 toaster.toast({ title: "Reset Error", body: result });
               } else {
-                toaster.toast({ title: "Success!", body: result });
-                setNeedsReboot(true);
+                showModal(
+                  <ConfirmModal
+                    strTitle="Reset Complete"
+                    strDescription="The environment has been purged. You must reboot. Reboot now?"
+                    strOKButtonText="Restart Now"
+                    onOK={() => { call("reboot_system"); }}
+                    strCancelButtonText="Restart Later"
+                  />
+                );
               }
             } catch (e) {
               toaster.toast({ title: "Error", body: "Backend unreachable." });
@@ -305,7 +345,7 @@ export const QuickAccessContent = () => {
           <>
             <PanelSectionRow>
               <ButtonItem
-                layout="inline"
+                layout="below"
                 disabled={!gpuStatus.connected || gpuStatus.active || isLoading}
                 onClick={() => handleAction("enable_egpu", "Enabling")}
               >
@@ -315,7 +355,7 @@ export const QuickAccessContent = () => {
 
             <PanelSectionRow>
               <ButtonItem
-                layout="inline"
+                layout="below"
                 disabled={!gpuStatus.active || isLoading}
                 onClick={() => handleAction("eject_egpu", "Ejecting")}
               >
@@ -352,12 +392,22 @@ export const QuickAccessContent = () => {
             </PanelSectionRow>
             <PanelSectionRow>
               <ToggleField
-                label="Switch to Desktop on Enable"
-                description="Turn on to reboot straight into Desktop Mode when running the Enable script. Recommended for 4K and Ultrawide resolutions."
+                label="DesktopMode on Enable"
+                description="Turn on to reboot straight into Desktop Mode when running the Enable. Recommended for 4K and Ultrawide resolutions with NVIDIA GPUs."
                 // Disable if the hardware is active
                 disabled={gpuStatus.active || isLoading}
                 checked={selectedDesktopMode === "1"}
                 onChange={toggleDesktopMode}
+              />
+            </PanelSectionRow>
+            <PanelSectionRow>
+              <ToggleField
+                label="Set Desktop to Default"
+                description="Turn on to set Desktop Mode to Default when running the XG Mobile. You MUST run the Eject Desktop Link to revert to GameMode."
+                // Disable if the hardware is active
+                disabled={gpuStatus.active || isLoading || selectedDesktopMode === "0"}
+                checked={selectedDesktopDefault === "1"}
+                onChange={toggleDesktopDefault}
               />
             </PanelSectionRow>
           </>
@@ -368,8 +418,8 @@ export const QuickAccessContent = () => {
       <PanelSection title="Advanced">
         <PanelSectionRow>
           <ButtonItem
-            layout="inline"
-            description="Create Desktop shortcuts for enabling and ejecting the XG Mobile. Run this after selecting Vender type."
+            layout="below"
+            description="Create Desktop shortcuts for enabling and ejecting the XG Mobile. Run this after selecting Vender type and running Install NVIDIA Drivers if needed."
             disabled={isLoading}
             onClick={() => handleAction("create_desktop_shortcuts", "Creating Shortcuts")}
           >
@@ -380,11 +430,23 @@ export const QuickAccessContent = () => {
         {osType === "steamos" && (
           <PanelSectionRow>
             <ButtonItem
-              layout="inline"
+              layout="below"
               disabled={gpuStatus.active || isLoading}
               onClick={handleInstall} 
             >
               Install NVIDIA Drivers
+            </ButtonItem>
+          </PanelSectionRow>
+        )}
+        {/* Render Reset button ONLY on SteamOS */}
+        {osType === "steamos" && (
+          <PanelSectionRow>
+            <ButtonItem
+              layout="below"
+              disabled={gpuStatus.active || isLoading}
+              onClick={onResetClick}
+            >
+              <span style={{ color: "#ff5555" }}>Reset Driver Environment</span>
             </ButtonItem>
           </PanelSectionRow>
         )}
@@ -397,7 +459,7 @@ export const QuickAccessContent = () => {
                 Restart Supergfxd
               </ButtonItem>
               <ButtonItem
-                layout="inline"
+                layout="below"
                 disabled={isLoading}
                 onClick={() => handleAction("hybrid_supergfxctl", "Switching to Hybrid")}
               >
@@ -407,7 +469,7 @@ export const QuickAccessContent = () => {
 
             <PanelSectionRow>
               <ButtonItem
-                layout="inline"
+                layout="below"
                 disabled={isLoading}
                 onClick={() => handleAction("integrated_supergfxctl", "Switching to Integrated")}
               >
@@ -420,37 +482,12 @@ export const QuickAccessContent = () => {
         {/* Universal Debug Tools */}
         <PanelSectionRow>
           <ButtonItem
-            layout="inline"
-            onClick={async () => {
-              const test = await call("get_gpu_status");
-              toaster.toast({ title: "Debug", body: JSON.stringify(test) });
-            }}
-          >
-            Check Backend eGPU State - Debug
-          </ButtonItem>
-        </PanelSectionRow>
-
-        <PanelSectionRow>
-          <ButtonItem
-            layout="inline"
+            layout="below"
             onClick={() => showModal(<LogViewerModal />)} 
           >
             View Activity Logs
           </ButtonItem>
         </PanelSectionRow>
-
-        {/* Render Reset button ONLY on SteamOS */}
-        {osType === "steamos" && (
-          <PanelSectionRow>
-            <ButtonItem
-              layout="inline"
-              disabled={gpuStatus.active || isLoading}
-              onClick={onResetClick}
-            >
-              <span style={{ color: "#ff5555" }}>Reset Driver Environment</span>
-            </ButtonItem>
-          </PanelSectionRow>
-        )}
       </PanelSection>
 
       <PanelSection title="About">

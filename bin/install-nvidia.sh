@@ -8,14 +8,14 @@ echo "Checking NVIDIA driver status..."
 # Check if the kernel module is actually loadable
 if modinfo nvidia >/dev/null 2>&1; then
   VERSION=$(modinfo nvidia | grep "^version:" | awk '{print $2}')
-  echo "SUCCESS: NVIDIA Driver $VERSION is already installed and matched to the current kernel."
-  exit 0
+  echo "ALREADY_INSTALLED NVIDIA Driver $VERSION is matched to the current kernel."
+  exit 1
 fi
 
 if ! grep -qi "steamos" /etc/os-release; then
     echo "ERROR: Unsupported OS detected. This driver installation script is built exclusively for SteamOS (Arch)."
     echo "If you are using Bazzite, please switch to the 'bazzite-nvidia-deck' image, which has the drivers natively built-in."
-    exit 1
+    exit 2
 fi
 
 # Exit immediately on error
@@ -54,8 +54,28 @@ echo "Verifying Arch repository kernel headers..."
 pacman -Sy >/dev/null 2>&1 || true
 KVER_BASE=$(echo "$KVER_FULL" | cut -d'-' -f1)
 
-REPO_RAW=$(pacman -Ss "$HEADER_PKG" | grep "^jupiter-main" | head -n 1)
-REPO_VER=$(echo "$REPO_RAW" | awk '{print $2}')
+#REPO_RAW=$(pacman -Ss "$HEADER_PKG" | grep "^jupiter-main" | head -n 1)
+#REPO_VER=$(echo "$REPO_RAW" | awk '{print $2}')
+#REPO_BASE=$(echo "$REPO_VER" | cut -d'.' -f1,2,3)
+
+#if [ "$KVER_BASE" != "$REPO_BASE" ]; then
+#  echo "ERROR: Kernel mismatch detected!"
+#  echo "Active Kernel: $KVER_FULL"
+#  echo "Repository Headers: $REPO_VER"
+#  echo "Valve has updated the kernel headers in their repository."
+#  echo "Please go to SteamOS Settings -> System -> Apply Updates and reboot before installing."
+#  exit 1
+#fi
+
+REPO_VER=$(pacman -Si "$HEADER_PKG" 2>/dev/null | awk '/^Version/ {print $3}')
+
+if [ -z "$REPO_VER" ]; then
+  echo "ERROR: Could not locate headers for $HEADER_PKG in any active repository."
+  echo "Please go to SteamOS Settings -> System -> Apply Updates and reboot before installing."
+  exit 3
+fi
+
+# Extract the base version (e.g., 6.16.12 from 6.16.12.valve21-1)
 REPO_BASE=$(echo "$REPO_VER" | cut -d'.' -f1,2,3)
 
 if [ "$KVER_BASE" != "$REPO_BASE" ]; then
@@ -64,8 +84,9 @@ if [ "$KVER_BASE" != "$REPO_BASE" ]; then
   echo "Repository Headers: $REPO_VER"
   echo "Valve has updated the kernel headers in their repository."
   echo "Please go to SteamOS Settings -> System -> Apply Updates and reboot before installing."
-  exit 1
+  exit 4
 fi
+
 HEADER_PKG="${HEADER_PKG}=${REPO_VER}"
 echo "Kernel check passed: $KVER_BASE"
 
@@ -175,12 +196,12 @@ MIN_HOME_KIB=4194304 #4GB
 MIN_ROOT_KIB=512000 # 500 MiB #614400 # 600 MiB
 if [ "$ROOT_FREE_KIB" -lt "$MIN_ROOT_KIB" ]; then
   echo "ERROR: Rootfs (/) is too full. You have $(($ROOT_FREE_KIB / 1024)) MiB, but require at least 800 MiB."
-  exit 1
+  exit 5
 fi
 if [ "$HOME_FREE_KIB" -lt "$MIN_HOME_KIB" ]; then
   echo "ERROR: Not enough space on /home partition."
   echo "You have $(($HOME_FREE_KIB / 1024)) MiB, but this install requires 4096 MiB."
-  exit 1
+  exit 6
 fi
 
 echo "Initial space check: $(($HOME_FREE_KIB / 1024)) MiB available on /home."

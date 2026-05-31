@@ -1,6 +1,6 @@
 import { SiAsus } from "react-icons/si";
 import { BsGpuCard } from "react-icons/bs"; 
-import { definePlugin } from "@decky/api"; 
+import { definePlugin, call } from "@decky/api"; 
 import { staticClasses } from "@decky/ui";
 import React from "react";
 
@@ -13,9 +13,29 @@ export default definePlugin(() => {
   const pluginState = new PluginState();
   PluginController.setup(pluginState);
 
+  const checkDesktopTransition = async () => {
+    try {
+      // @decky/api returns the result directly, and handles backend errors natively
+      const needsTransition = (await call("check_and_clear_desktop_flag")) as boolean;
+      
+      if (needsTransition) {
+        console.log("XG Mobile: Transitioning to Desktop Mode via OS backend...");
+        
+        // Give SDDM 4 seconds to stabilize, then let Python execute the native swap
+        setTimeout(async () => {
+          await call("trigger_desktop_mode");
+        }, 4000);
+      }
+    } catch (e) {
+      console.error("XG Mobile Transition check failed:", e);
+    }
+  };
+
   const loginUnregisterer = PluginController.initOnLogin(async () => {
     // Initialization logic
   });
+
+  checkDesktopTransition();
 
   return {
     name: "ASUS XGMobile Manager",
