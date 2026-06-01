@@ -71,6 +71,7 @@ if [[ "$OS_TYPE" == "steamos" || "$OS_TYPE" == *"cachyos"* ]]; then
 
     echo "Removing isolated KDE Plasma environment config..."
     rm -f "/home/$PRIMARY_USER/.config/plasma-workspace/env/xgmobile-kwin.sh"
+    rm -f "/home/$PRIMARY_USER/.config/plasma-workspace/env/xgmobile-nvidia-kwin.sh"
 
     # DISK CLEANUP
     echo "Removing environment variables from disk..."
@@ -80,6 +81,7 @@ if [[ "$OS_TYPE" == "steamos" || "$OS_TYPE" == *"cachyos"* ]]; then
     # We kill any processes still holding the GPU and unload the modules
     echo "Stopping NVIDIA power services..."
     systemctl stop nvidia-powerd nvidia-persistenced 2>/dev/null || true
+    systemctl disable xgmobile-boot-sync.service 2>/dev/null
     
     echo "Force killing any lingering GPU processes and stopping NVIDIA services..."
     fuser -kv /dev/nvidia* >/dev/null 2>&1
@@ -152,7 +154,7 @@ if [ "$SUCCESS" -eq 0 ]; then
   echo "WARNING: Hardware did not seem to drop from /dev/dri/. Proceeding anyway to restore UI."
 fi
 
-systemctl start sddm --no-block
+systemctl start sddm #--no-block
 
 #if [ $SUPERGFX_TRIG == 1 ]; then
 #  echo "Restarting supergfxctl..."

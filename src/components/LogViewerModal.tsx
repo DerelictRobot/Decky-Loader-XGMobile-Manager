@@ -4,11 +4,19 @@ import { call } from "@decky/api";
 
 const LOG_OPTIONS: DropdownOption[] = [
   { data: 'enable', label: 'Enable Log' },
+  { data: 'enabledesktop', label: 'Enable Desktop Link Log' },
   { data: 'eject', label: 'Eject Log' },
+  { data: 'ejectdesktop', label: 'Eject Desktop Link Log' },
+  { data: 'transition', label: 'Desktop Transition Log' },
+  { data: 'hybrid', label: 'Supergfx Hybrid Log' },
+  { data: 'integrated', label: 'Supergfx Integrated Log' },
   { data: 'install', label: 'NVIDIA Install Log' },
   //{ data: 'repair', label: 'Repair Services Log' },
   { data: 'uninstall', label: 'Reset Environment Log' },
-  { data: 'debug', label: 'Debug Logs' }
+  { data: 'shortcuts', label: 'Install Desktop Shortcuts Log' },
+  { data: 'sync', label: 'Boot NVIDIA DRM sync Log' },
+  { data: 'python', label: 'Python Critical Error Log' },
+  { data: 'debug', label: 'Debug Log' }
 ];
 
 interface LogViewerModalProps {
