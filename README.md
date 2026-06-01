@@ -103,9 +103,9 @@ curl -sL "https://raw.githubusercontent.com/Kentronix57/Decky-Loader-XGMobile-Ma
 
 ### Daily Use
 
-### 🚀 New in v0.2.3
-* **[Desktop on Enable]:** Enable the Desktop on Enable toggle to automatically switch to Desktop Mode when running the Enable XG Mobile button. Recommended for 4K/8K and Ultrawide resolutions.
-* **[Set Desktop to Default]:** Enable this toggle to set Desktop Mode to persistent when Enabling the XG Mobile. Run the Eject XG Mobile Desktop Link to eject the XG Mobile and revert to GameMode.
+> ### 🚀 New in v0.2.3
+> * **[Desktop on Enable]:** Enable the Desktop on Enable toggle to automatically switch to Desktop Mode when running the Enable XG Mobile button. Recommended for 4K/8K and Ultrawide resolutions.
+> * **[Set Desktop to Default]:** Enable this toggle to set Desktop Mode to persistent when Enabling the XG Mobile. Run the Eject XG Mobile Desktop Link to eject the XG Mobile and revert to GameMode.
 
 * **To Play:** Plug in the XG Mobile, lock it, and click **Enable XG Mobile**. The light on the XG Mobile connector will turn red. The screen will then briefly go black as `gamescope` restarts on the external GPU, please be patient. Some external monitors alternate On/Off during this process.
 * **Power Profiles:** Once active, use the **ASUS Hardware Controls** dropdown to toggle between Quiet, Balanced, and Performance thermal limits for the eGPU.
