@@ -3,7 +3,8 @@
 > Native, UI-driven support for the ASUS ROG XG Mobile eGPU ecosystem on SteamOS and Bazzite.
 
 [![SteamOS Compatible](https://img.shields.io/badge/SteamOS-Compatible-1A9FFF)](https://store.steampowered.com/steamos)
-[![Kernel 6.18](https://img.shields.io/badge/kernel-6.18.28--valve1-orange)](https://gitlab.steamos.cloud/jupiter/linux-integration)
+[![Kernel Dynamic](https://img.shields.io/badge/kernel-Dynamic-orange)](https://gitlab.steamos.cloud/jupiter/linux-integration)
+[![Kernel SteamOS Main/Beta](https://img.shields.io/badge/kernel-SteamOS_Main%2FBeta-orange)](https://gitlab.steamos.cloud/jupiter/linux-integration)
 [![NVIDIA 595](https://img.shields.io/badge/nvidia--dkms-595.71.05-76B900)](https://www.nvidia.com/Download/index.aspx)
 [![CUDA 12.8](https://img.shields.io/badge/CUDA-12.8-76B900)](https://developer.nvidia.com/cuda-downloads)
 [![License GPLv3](https://img.shields.io/badge/license-GPLv3-blue)](LICENSE)
@@ -15,14 +16,14 @@ A Decky Loader plugin that brings seamless, UI-driven support for the ASUS ROG X
 This plugin manages the complex hardware handshakes, dynamically compiles and intercepts NVIDIA drivers using safe bind-mount architecture on SteamOS, injects Wayland/Vulkan environment variables to make eGPUs work natively inside Steam's Gaming Mode, and provides direct motherboard-level control over the eGPU's power limits and thermals.
 
 ---
-NVIDIA GameMode optimizations
+
 ## Table of Contents
 - [Important Disclaimers & Risks](#️-important-disclaimers--risks)
 - [Compatibility Matrix](#-compatibility-matrix)
 - [How It Works (Under the Hood)](#️-how-it-works-under-the-hood)
 - [Installation](#-installation)
 - [How To Use](#-how-to-use)
-- [NVIDIA GameMode optimizations](#️-nvidia-gamemode-optimizations)
+- [NVIDIA GameMode Optimizations](#️-nvidia-gamemode-optimizations)
 - [Building From Source](#️-building-from-source)
 - [Known Issues](#-known-issues)
 - [Support & Troubleshooting](#-support--troubleshooting)
@@ -98,8 +99,14 @@ curl -sL "https://raw.githubusercontent.com/Kentronix57/Decky-Loader-XGMobile-Ma
 3. Select your Vendor Mode (NVIDIA or AMD). If AMD, skip to Daily Use. NVIDIA users on SteamOS, please continue.
 4. **SteamOS NVIDIA ONLY:** Make sure you are on the latest SteamOS update. Click Install NVIDIA Drivers. A live terminal will appear. Do not turn off your device. This downloads ~1.8GB of data and compiles the Linux kernel modules. Reboot when prompted.
 5. **Bazzite ONLY:** No installation is required. The Advanced menu will intentionally hide the driver installer to protect your immutable OS.
+6. Click Create Desktop Icons to make Desktop Shortcuts for Enabling and Ejecting the XG Mobile
 
 ### Daily Use
+
+### 🚀 New in v0.2.3
+* **[Desktop on Enable]:** Enable the Desktop on Enable toggle to automatically switch to Desktop Mode when running the Enable XG Mobile button. Recommended for 4K/8K and Ultrawide resolutions.
+* **[Set Desktop to Default]:** Enable this toggle to set Desktop Mode to persistent when Enabling the XG Mobile. Run the Eject XG Mobile Desktop Link to eject the XG Mobile and revert to GameMode.
+
 * **To Play:** Plug in the XG Mobile, lock it, and click **Enable XG Mobile**. The light on the XG Mobile connector will turn red. The screen will then briefly go black as `gamescope` restarts on the external GPU, please be patient. Some external monitors alternate On/Off during this process.
 * **Power Profiles:** Once active, use the **ASUS Hardware Controls** dropdown to toggle between Quiet, Balanced, and Performance thermal limits for the eGPU.
 * **To Disconnect:** Click **Eject XG Mobile**. Wait for the UI to restart and return to the handheld screen and the light on the XG Mobile connector is white before unlocking the cable.
@@ -116,7 +123,7 @@ When there is a SteamOS update available, follow this exact sequence for safety:
 
 ---
 
-## NVIDIA GameMode optimizations
+## NVIDIA GameMode Optimizations
 * **HDR STILL IN TESTING** If you experience color issues, disable HDR under Display in Steam Settings.
 * **Auto-Dimming:** If the screen is constantly dimming on you, enable "Use Native Color Tempeture" in Steam Display Settings.
 * **Tearing/Vsync:** Enable VRR and Allow Screen Tearing in the Quick Access Menu. (Don't worry, the screen won't actually tear, this is required for how NVIDIA communicates its layers to Wayland/Gamescope).
@@ -152,6 +159,7 @@ If you wish to contribute or build the plugin from your own development environm
 * **Boot Loop after SteamOS Update:** If you update SteamOS *without* running the Reset script first, the system may try to load orphaned kernel modules. Run the Reset script from recovery or TTY to fix.
 * **Internal Display still on:** When leaving the eGPU active and rebooting/shutdown in GameMode, the internal display stays on and displays the boot logo. This doesn't affect performance, but is actively being investigated.
 * **Power Profile overwritten by other TDP controllers:** Other TDP controls (like SimpleDeckyTDP and HHD) will override the setting of the Power Profile. Use the dropdown in this app to monitor what the current power profile is (this plugin pings the xg mobile every 3 seconds to determine the current Power Profile setting).
+* **Set Desktop to Default on BazziteOS:** Setting desktop mode to persistent is not currently possible on BazziteOS. With the deck image of bazzite, they have made it over-write the desktop persistence on a reboot. This is still under investigation
 
 ---
 
