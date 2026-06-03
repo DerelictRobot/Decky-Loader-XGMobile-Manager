@@ -67,15 +67,27 @@ class Plugin:
     return os.path.exists(ASUS_EGPU_ENABLE)
 
   def _detect_vendor(self):
-    """Returns 'nvidia', 'amd', or 'none' from the PCI bus / DRM nodes."""
+    """Returns 'nvidia', 'amd', or 'none' from the PCI bus.
+    NOTE: we cannot infer AMD purely from /dev/dri/card1 -- on hosts with an AMD APU
+    (Legion Go 2, Z2 Extreme, etc.) card1 is the *integrated* GPU, not an eGPU. So
+    AMD eGPU detection is intentionally conservative: we only return 'amd' if an
+    extra AMD card beyond the iGPU is visible on PCI."""
     try:
       res = subprocess.check_output(["lspci", "-n", "-d", "10de:"]).decode()
       if "10de:" in res:
         return "nvidia"
     except Exception:
       pass
-    if os.path.exists("/dev/dri/card1"):
-      return "amd"
+    # Count AMD PCI devices that are GPUs (class 0x0300 = VGA, 0x0380 = display).
+    try:
+      amd_gpus = subprocess.check_output(
+        ["lspci", "-mm", "-n", "-d", "1002:"]
+      ).decode().splitlines()
+      # If there's more than one AMD GPU present, the extra one is likely an eGPU.
+      if len(amd_gpus) > 1:
+        return "amd"
+    except Exception:
+      pass
     return "none"
 
   def _nvidia_drm_present(self):
@@ -725,11 +737,13 @@ class Plugin:
         # connected: the GPU has tunnelled onto the PCI bus, or a TB device is waiting
         # to be authorized.
         status["connected"] = (vendor != "none") or self._thunderbolt_device_attached()
-        # active: drivers bound and a usable DRM node exists.
+        # active: drivers bound and a usable DRM node exists. For AMD we already
+        # required >1 AMD GPU in _detect_vendor() so the vendor flag itself signals
+        # an attached eGPU; the iGPU alone won't trip it.
         if vendor == "nvidia":
           status["active"] = os.path.exists("/sys/module/nvidia") and self._nvidia_drm_present()
         elif vendor == "amd":
-          status["active"] = os.path.exists("/dev/dri/card1")
+          status["active"] = True
 
     except Exception as e:
       error(f"CRITICAL PYTHON ERROR in get_gpu_status: {e}")
