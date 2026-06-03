@@ -78,13 +78,16 @@ class Plugin:
         return "nvidia"
     except Exception:
       pass
-    # Count AMD PCI devices that are GPUs (class 0x0300 = VGA, 0x0380 = display).
+    # Count AMD *display* devices (class 03xx: VGA/3D/Display controller).
+    # We must filter by class because the iGPU's HDMI audio controller shares the
+    # same AMD vendor ID (1002) but is class 04xx -- counting it would always give
+    # len > 1 on any AMD APU host and falsely signal an AMD eGPU.
     try:
-      amd_gpus = subprocess.check_output(
+      lines = subprocess.check_output(
         ["lspci", "-mm", "-n", "-d", "1002:"]
       ).decode().splitlines()
-      # If there's more than one AMD GPU present, the extra one is likely an eGPU.
-      if len(amd_gpus) > 1:
+      amd_display_gpus = [l for l in lines if '"03' in l]
+      if len(amd_display_gpus) > 1:
         return "amd"
     except Exception:
       pass
