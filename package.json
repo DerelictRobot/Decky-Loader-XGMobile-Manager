@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Kentronix57/Decky-Loader-XGMobile-Manager.git"
+    "url": "git+https://github.com/DerelictRobot/Decky-Loader-XGMobile-Manager.git"
   },
   "keywords": [
     "rog-ally",
@@ -26,9 +26,9 @@
   },
   "license": "GPL-3",
   "bugs": {
-    "url": "https://github.com/Kentronix57/Decky-Loader-NVIDIA-XGMobile-Plugin/issues"
+    "url": "https://github.com/DerelictRobot/Decky-Loader-XGMobile-Manager/issues"
   },
-  "homepage": "https://github.com/Kentronix57/Decky-Loader-XGMobile-Manager#readme",
+  "homepage": "https://github.com/DerelictRobot/Decky-Loader-XGMobile-Manager#readme",
   "devDependencies": {
     "@decky/api": "^1.0.5",
     "@decky/rollup": "^1.0.2",

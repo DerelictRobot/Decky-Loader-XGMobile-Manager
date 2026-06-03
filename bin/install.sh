@@ -2,7 +2,7 @@
 
 # Define variables
 PLUGIN_NAME="xgmobile-manager"
-RELEASE_URL="https://github.com/Kentronix57/Decky-Loader-XGMobile-Manager/releases/latest/download/xgmobile-manager.zip"
+RELEASE_URL="https://github.com/DerelictRobot/Decky-Loader-XGMobile-Manager/releases/latest/download/xgmobile-manager.zip"
 PLUGIN_DIR="$HOME/homebrew/plugins"
 
 echo "Installing XG Mobile Manager..."

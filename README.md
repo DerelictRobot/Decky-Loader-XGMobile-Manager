@@ -95,7 +95,7 @@ Bazzite completely strips out standard ASUS daemons (like asusd) to preserve nat
 Run this single command in your device's terminal (Desktop Mode or via SSH) to download and install the latest release automatically:
 
 ```bash
-curl -sL "https://raw.githubusercontent.com/Kentronix57/Decky-Loader-XGMobile-Manager/refs/heads/main/bin/install.sh" > /tmp/install.sh && bash /tmp/install.sh
+curl -sL "https://raw.githubusercontent.com/DerelictRobot/Decky-Loader-XGMobile-Manager/refs/heads/main/bin/install.sh" > /tmp/install.sh && bash /tmp/install.sh
 ```
 *(Note: Restart your Device after installation to ensure the UI loads).*
 
