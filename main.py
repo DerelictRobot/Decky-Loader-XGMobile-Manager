@@ -130,7 +130,7 @@ class Plugin:
       with open('/sys/class/dmi/id/product_name', 'r') as f:
         product_name = f.read().strip()
               
-      if "RC71L" in product_name or "Ally" in product_name or "Legion Go" in product_name:
+      if "RC71L" in product_name or "Ally" in product_name or "Legion Go" in product_name or "83N0" in product_name:
         return "handheld"
       elif "Flow" in product_name or "GV" in product_name or "GZ" in product_name:
         return "laptop"
