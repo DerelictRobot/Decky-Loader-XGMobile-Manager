@@ -1,8 +1,8 @@
 {
   "name": "xgmobile-manager",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "type": "module",
-  "description": "Manage XG Mobile Ejection, Activation, and NVIDIA Driver Repairs.",
+  "description": "Manage Thunderbolt/USB4 and ASUS XG Mobile eGPUs: activation, ejection, and NVIDIA driver repairs.",
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -c -w",
@@ -14,9 +14,12 @@
   },
   "keywords": [
     "rog-ally",
+    "legion-go",
     "xgmobile",
     "nvidia",
-    "egpu"
+    "egpu",
+    "thunderbolt",
+    "usb4"
   ],
   "author": {
     "name": "Kenny Hood (Kentronix)"

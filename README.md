@@ -51,6 +51,16 @@ This plugin manages the complex hardware handshakes, dynamically compiles and in
 | **NVIDIA XG Mobile (4090)** | 🟢 Tested & Working | 🟢 Tested & Working | Full DKMS driver compilation supported. BazziteOS cannot recover from sleep/hibernate. |
 | **NVIDIA XG Mobile (3080)** | 🟡 Experimental | 🟡 Experimental | Untested, but should follow all the same rules as the 4090. |
 | **AMD XG Mobile (6850M XT)** | 🟡 Experimental | 🟢 Tested & Working | Uses native `amdgpu` kernel drivers. |
+| **NVIDIA XG Mobile 2025 (5070 Ti / 5090)** | 🟡 Experimental | 🟡 Experimental | **Thunderbolt 5 / USB4 connector** — no proprietary handshake. Works on any TB4/USB4 host (incl. **Lenovo Legion Go 2**). Blackwell **requires the NVIDIA open kernel modules** — use **bazzite-nvidia** (ships them) so no DKMS install is needed. |
+
+> **Host backend.** On ASUS hardware the plugin uses the proprietary `asus-nb-wmi` firmware
+> interface. On any other host (e.g. the Legion Go 2 over USB4) it auto-detects a **generic
+> Thunderbolt/USB4 + PCI** path: Enable authorizes the Thunderbolt device and rescans the PCI
+> bus; Eject removes the PCI device and deauthorizes the tunnel. The power-profile dropdown
+> maps to the kernel's ACPI `platform_profile` when ASUS WMI is absent.
+>
+> **Legion Go 2 BIOS:** set Thunderbolt/USB4 **security to "auto" or "none"** so the eGPU can
+> hotplug-authorize; resizable BAR / PCIe tunneling may also need to be enabled.
 
 ---
 

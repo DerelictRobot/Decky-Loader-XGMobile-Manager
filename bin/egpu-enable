@@ -12,11 +12,22 @@ exec > "$LOG_DIR/xgmobile_manager_enable_${VENDOR}.log" 2>&1
 
 echo "--- XG Mobile Enable ($VENDOR) Started at $(date) ---"
 
-# Hardware Lock Check
-CONNECTED=$(cat /sys/devices/platform/asus-nb-wmi/egpu_connected || echo "0")
-if [ "$CONNECTED" -eq 0 ]; then
-  echo "ERROR: XG Mobile not locked."
-  exit 1
+# Hardware backend: 'asus' uses the proprietary WMI connector; 'generic' is a standard
+# Thunderbolt/USB4 eGPU (e.g. TB5 XG Mobile on a Lenovo Legion Go 2).
+if [ -e /sys/devices/platform/asus-nb-wmi/egpu_enable ]; then
+  BACKEND="asus"
+else
+  BACKEND="generic"
+fi
+echo "Detected eGPU backend: $BACKEND"
+
+# Hardware Lock Check (ASUS firmware only -- generic docks prove presence via PCI below)
+if [ "$BACKEND" == "asus" ]; then
+  CONNECTED=$(cat /sys/devices/platform/asus-nb-wmi/egpu_connected || echo "0")
+  if [ "$CONNECTED" -eq 0 ]; then
+    echo "ERROR: XG Mobile not locked."
+    exit 1
+  fi
 fi
 
 if [[ "$OS_TYPE" == "steamos" || "$OS_TYPE" == *"cachyos"* ]];  then
@@ -99,9 +110,31 @@ fi
 # Hardware Activation
 EXISTING_CARDS=$(ls /dev/dri/card* 2>/dev/null)
 IGPU_CARD=$(echo "$EXISTING_CARDS" | head -n 1)
-ENABLE_PATH="/sys/devices/platform/asus-nb-wmi/egpu_enable"
-if [ "$(cat $ENABLE_PATH)" -eq 0 ]; then
-  echo 1 > "$ENABLE_PATH" || true
+
+if [ "$BACKEND" == "asus" ]; then
+  # Proprietary connector: ask the EC/WMI to bring up the PCIe link.
+  ENABLE_PATH="/sys/devices/platform/asus-nb-wmi/egpu_enable"
+  if [ "$(cat $ENABLE_PATH)" -eq 0 ]; then
+    echo 1 > "$ENABLE_PATH" || true
+  fi
+else
+  # Generic Thunderbolt/USB4: authorize any unauthorized downstream device so the GPU
+  # tunnels onto the PCI bus. Writing the sysfs 'authorized' flag covers the common
+  # 'user' security level; it is a no-op when TB security is auto/none (already authorized).
+  # boltctl is preferred for 'secure' level (key storage) -- enroll listed devices if present.
+  if command -v boltctl >/dev/null 2>&1; then
+    for uuid in $(boltctl list 2>/dev/null | awk '/uuid:/ {print $2}'); do
+      echo "Enrolling Thunderbolt device $uuid via boltctl..."
+      boltctl enroll "$uuid" 2>/dev/null || boltctl authorize "$uuid" 2>/dev/null || true
+    done
+  fi
+  for d in /sys/bus/thunderbolt/devices/*/authorized; do
+    [ -e "$d" ] || continue
+    if [ "$(cat "$d" 2>/dev/null)" == "0" ]; then
+      echo "Authorizing $(dirname "$d")..."
+      echo 1 > "$d" 2>/dev/null || true
+    fi
+  done
 fi
 echo 1 > /sys/bus/pci/rescan
 

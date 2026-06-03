@@ -7,7 +7,7 @@
   "bin": "python3",
   "python_src": "main.py",
   "publish": {
-    "tags": ["eGPU", "NVIDIA", "AMD", "XGMobile", "ROG-Ally", "Flow", "ASUS"],
-    "description": "Manage XG Mobile Ejection, Activation, and NVIDIA Driver Repairs."
+    "tags": ["eGPU", "NVIDIA", "AMD", "XGMobile", "ROG-Ally", "Flow", "ASUS", "Legion-Go", "Thunderbolt", "USB4"],
+    "description": "Manage Thunderbolt/USB4 and ASUS XG Mobile eGPUs: activation, ejection, and NVIDIA driver repairs."
   }
 }

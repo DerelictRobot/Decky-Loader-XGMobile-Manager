@@ -1,5 +1,4 @@
-import { SiAsus } from "react-icons/si";
-import { BsGpuCard } from "react-icons/bs"; 
+import { BsGpuCard } from "react-icons/bs";
 import { definePlugin, call } from "@decky/api"; 
 import { staticClasses } from "@decky/ui";
 import React from "react";
@@ -38,14 +37,14 @@ export default definePlugin(() => {
   checkDesktopTransition();
 
   return {
-    name: "ASUS XGMobile Manager",
-    title: <div className={staticClasses.Title}>ASUS XGMobile Manager</div>,
+    name: "XG Mobile Manager",
+    title: <div className={staticClasses.Title}>XG Mobile Manager</div>,
     content: (
       <PluginContextProvider PluginStateClass={pluginState}>
         <QuickAccessContent />
       </PluginContextProvider>
     ),
-    icon: <BsGpuCard />, //<SiAsus />
+    icon: <BsGpuCard />,
     onDismount: () => {
       loginUnregisterer.unregister();
       PluginController.dismount();

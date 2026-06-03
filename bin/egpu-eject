@@ -12,7 +12,16 @@ exec > "$LOG_DIR/xgmobile_manager_eject_${VENDOR}.log" 2>&1
 
 echo "--- XG Mobile Eject ($VENDOR) Started at $(date) ---"
 
-if systemctl is-active --quiet supergfxd.service; then 
+# Hardware backend: 'asus' uses the proprietary WMI connector; 'generic' is a standard
+# Thunderbolt/USB4 eGPU (e.g. TB5 XG Mobile on a Lenovo Legion Go 2).
+if [ -e /sys/devices/platform/asus-nb-wmi/egpu_enable ]; then
+  BACKEND="asus"
+else
+  BACKEND="generic"
+fi
+echo "Detected eGPU backend: $BACKEND"
+
+if systemctl is-active --quiet supergfxd.service; then
   echo "Supergfxd Detected. Stopping supergfxd to avoid panic during switch..."
   systemctl stop supergfxd.service 2>/dev/null || true
   SUPERGFX_TRIG=1
@@ -129,8 +138,27 @@ INITIAL_COUNT=$(echo "$INITIAL_CARDS" | wc -w)
 
 echo "Current DRM cards before disconnect: $INITIAL_COUNT"
 
-ENABLE_PATH="/sys/devices/platform/asus-nb-wmi/egpu_enable"
-echo 0 > "$ENABLE_PATH" || true
+if [ "$BACKEND" == "asus" ]; then
+  # Proprietary connector: ask the EC/WMI to tear down the PCIe link.
+  ENABLE_PATH="/sys/devices/platform/asus-nb-wmi/egpu_enable"
+  echo 0 > "$ENABLE_PATH" || true
+else
+  # Generic Thunderbolt/USB4: remove the GPU's PCI device(s), then deauthorize the
+  # Thunderbolt tunnel so the dock fully detaches (mirrors the WMI link teardown).
+  for bdf in $(lspci -D -d 10de: 2>/dev/null | awk '{print $1}'); do
+    echo "Removing PCI device $bdf..."
+    echo 1 > "/sys/bus/pci/devices/$bdf/remove" 2>/dev/null || true
+  done
+  for d in /sys/bus/thunderbolt/devices/*/authorized; do
+    [ -e "$d" ] || continue
+    devdir="$(dirname "$d")"
+    case "$(basename "$devdir")" in
+      domain*|*-0) continue ;;  # skip domains and host routers
+    esac
+    echo "Deauthorizing $devdir..."
+    echo 0 > "$d" 2>/dev/null || true
+  done
+fi
 echo 1 > /sys/bus/pci/rescan
 
 COUNT=0

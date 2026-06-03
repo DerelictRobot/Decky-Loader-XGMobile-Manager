@@ -24,13 +24,25 @@ EJECTDESKTOP_LOG = os.path.join(LOG_DIR, "xgmobile_manager_desktop_eject_request
 TRANSITION_LOG = os.path.join(LOG_DIR, "xgmobile_manager_transition.log")
 HYBRID_LOG = os.path.join(LOG_DIR, "xgmobile_manager_supergfxd_hybrid.log")
 INTEGRATED_LOG = os.path.join(LOG_DIR, "xgmobile_manager_supergfxd_integrated.log")
-#REPAIR_LOG = os.path.join(LOG_DIR, "xgmobile_manager_repair.log")
 DEBUG_LOG = os.path.join(LOG_DIR, "xgmobile_manager_debug.log")
 INSTALL_LOG = os.path.join(LOG_DIR, "xgmobile_manager_install.log")
 UNINSTALL_LOG = os.path.join(LOG_DIR, "xgmobile_manager_uninstall.log")
 SHORTCUTS_LOG = os.path.join(LOG_DIR, "xgmobile_manager_create_shortcuts.log")
 SYNC_LOG = os.path.join(LOG_DIR, "xgmobile_manager_boot_sync.log")
 PYTHONERROR_LOG = os.path.join(LOG_DIR, "xgmobile_manager_python_crash.log")
+REPAIR_LOG = os.path.join(LOG_DIR, "xgmobile_manager_repair.log")
+
+# --- Hardware backend interfaces ---
+# ASUS proprietary firmware (only present on ASUS hardware). When these exist we use the
+# WMI path; otherwise we fall back to the generic Thunderbolt/USB4 + PCI path used by
+# standard eGPUs such as the TB5 XG Mobile on a Lenovo Legion Go 2.
+ASUS_WMI_DIR = "/sys/devices/platform/asus-nb-wmi"
+ASUS_EGPU_ENABLE = os.path.join(ASUS_WMI_DIR, "egpu_enable")
+ASUS_EGPU_CONNECTED = os.path.join(ASUS_WMI_DIR, "egpu_connected")
+ASUS_THERMAL_POLICY = os.path.join(ASUS_WMI_DIR, "throttle_thermal_policy")
+# Generic ACPI power-profile interface (e.g. Lenovo Legion Go).
+PLATFORM_PROFILE = "/sys/firmware/acpi/platform_profile"
+PLATFORM_PROFILE_CHOICES = "/sys/firmware/acpi/platform_profile_choices"
 
 os.makedirs(os.path.join(DATA_DIR, "configs"), exist_ok=True)
 
@@ -50,6 +62,57 @@ class Plugin:
   def get_plugin_dir(self):
     return PLUGIN_DIR
 
+  def _has_asus_wmi(self):
+    """True on ASUS hardware whose proprietary eGPU connector is firmware-gated."""
+    return os.path.exists(ASUS_EGPU_ENABLE)
+
+  def _detect_vendor(self):
+    """Returns 'nvidia', 'amd', or 'none' from the PCI bus / DRM nodes."""
+    try:
+      res = subprocess.check_output(["lspci", "-n", "-d", "10de:"]).decode()
+      if "10de:" in res:
+        return "nvidia"
+    except Exception:
+      pass
+    if os.path.exists("/dev/dri/card1"):
+      return "amd"
+    return "none"
+
+  def _nvidia_drm_present(self):
+    """True if an NVIDIA (0x10de) DRM card node exists, i.e. the driver bound."""
+    drm = "/sys/class/drm"
+    try:
+      for card in os.listdir(drm):
+        if not card.startswith("card"):
+          continue
+        try:
+          with open(os.path.join(drm, card, "device", "vendor"), "r") as f:
+            if f.read().strip() == "0x10de":
+              return True
+        except Exception:
+          continue
+    except Exception:
+      pass
+    return False
+
+  def _thunderbolt_device_attached(self):
+    """True if a downstream Thunderbolt/USB4 device (not the host router) is attached.
+    Lets the UI offer 'Enable' before the GPU is authorized onto the PCI bus (TB 'user'
+    security mode). Heuristic may need per-controller tuning -- see plan verification."""
+    base = "/sys/bus/thunderbolt/devices"
+    if not os.path.isdir(base):
+      return False
+    try:
+      for dev in os.listdir(base):
+        # Skip the domain entries and host routers (route string ending in "-0").
+        if dev.startswith("domain") or dev.endswith("-0"):
+          continue
+        if os.path.exists(os.path.join(base, dev, "authorized")):
+          return True
+    except Exception:
+      pass
+    return False
+
   async def get_version(self):
     """Reads the version directly from package.json."""
     try:
@@ -67,7 +130,7 @@ class Plugin:
       with open('/sys/class/dmi/id/product_name', 'r') as f:
         product_name = f.read().strip()
               
-      if "RC71L" in product_name or "Ally" in product_name:
+      if "RC71L" in product_name or "Ally" in product_name or "Legion Go" in product_name:
         return "handheld"
       elif "Flow" in product_name or "GV" in product_name or "GZ" in product_name:
         return "laptop"
@@ -397,14 +460,9 @@ class Plugin:
       return "Error: SteamOS not detected. NVIDIA Driver install is currently only for SteamOS."
         
     log("SteamOS detected: Starting DKMS driver compilation.")
-    #return await self._execute_script("install-nvidia.sh", INSTALL_LOG, LOG_DIR, DATA_DIR)
-    res = self._execute_script("install-nvidia.sh", INSTALL_LOG, LOG_DIR, DATA_DIR)
-    if res.returncode == 1:
-        return "ALREADY_INSTALLED"
-    elif res.returncode == 0:
-        return "SUCCESS"
-    else:
-        return "ERROR"
+    # _execute_script returns a string ("Success" / "Failed (Code N)" / "Error: ..."),
+    # which is what the frontend checks against -- just await and pass it through.
+    return await self._execute_script("install-nvidia.sh", INSTALL_LOG, LOG_DIR, DATA_DIR)
 
   async def uninstall_nvidia(self):
     return await self._execute_script("uninstall.sh", UNINSTALL_LOG, LOG_DIR, DATA_DIR)
@@ -548,45 +606,73 @@ class Plugin:
       error(f"Error enabling supergfxd: {e}")
       return f"Error: {str(e)}"
 
+  def _platform_profile_choices(self):
+    """The power-profile vocabulary this device exposes (e.g. low-power balanced performance)."""
+    try:
+      with open(PLATFORM_PROFILE_CHOICES, "r") as f:
+        return f.read().split()
+    except Exception:
+      return []
+
   async def get_power_profile(self):
     try:
-      policy_path = "/sys/devices/platform/asus-nb-wmi/throttle_thermal_policy"
-      if not os.path.exists(policy_path):
+      # ASUS firmware path (0 = Balanced, 1 = Performance/Turbo, 2 = Quiet).
+      if os.path.exists(ASUS_THERMAL_POLICY):
+        with open(ASUS_THERMAL_POLICY, "r") as f:
+          val = f.read().strip()
+        return {"0": "Balanced", "1": "Performance", "2": "Quiet"}.get(val, "Unknown")
+
+      # Generic ACPI platform_profile path (e.g. Lenovo Legion Go).
+      if os.path.exists(PLATFORM_PROFILE):
+        with open(PLATFORM_PROFILE, "r") as f:
+          val = f.read().strip()
+        if val == "performance":
+          return "Performance"
+        elif val in ("balanced", "balanced-performance"):
+          return "Balanced"
+        elif val in ("low-power", "quiet", "power-saver", "cool"):
+          return "Quiet"
         return "Unknown"
-        
-      with open(policy_path, "r") as f:
-        val = f.read().strip()
-        
-      # WMI Mapping: 0 = Balanced, 1 = Performance/Turbo, 2 = Quiet
-      if val == "0":
-        return "Balanced"
-      elif val == "1":
-        return "Performance"
-      elif val == "2":
-        return "Quiet"
-      else:
-        return "Unknown"
+
+      return "Unknown"
     except Exception as e:
       error(f"Error reading power profile: {e}")
       return "Error"
 
   async def set_power_profile(self, profile: str):
     clean_profile = str(profile).strip().lower()
-    log(f"WMI PROFILE RECEIVED FROM UI: '{clean_profile}'")
-    
-    val_to_write = "0"
-    if "balanced" in clean_profile:
-      val_to_write = "0"
-    elif "performance" in  clean_profile:
-      val_to_write = "1"
-    elif "quiet" in clean_profile:
-      val_to_write = "2"
+    log(f"PROFILE RECEIVED FROM UI: '{clean_profile}'")
 
     try:
-      policy_path = "/sys/devices/platform/asus-nb-wmi/throttle_thermal_policy"
-      with open(policy_path, "w") as f:
-        f.write(val_to_write)
-      return "Success"
+      # ASUS firmware path (0 = Balanced, 1 = Performance, 2 = Quiet).
+      if os.path.exists(ASUS_THERMAL_POLICY):
+        val_to_write = "0"
+        if "performance" in clean_profile:
+          val_to_write = "1"
+        elif "quiet" in clean_profile:
+          val_to_write = "2"
+        with open(ASUS_THERMAL_POLICY, "w") as f:
+          f.write(val_to_write)
+        return "Success"
+
+      # Generic ACPI platform_profile path. Map the UI's three labels onto whatever
+      # vocabulary the firmware actually offers, first available preference wins.
+      if os.path.exists(PLATFORM_PROFILE):
+        choices = self._platform_profile_choices()
+        if "performance" in clean_profile:
+          prefs = ["performance", "balanced-performance", "balanced"]
+        elif "quiet" in clean_profile:
+          prefs = ["quiet", "low-power", "power-saver", "cool", "balanced"]
+        else:
+          prefs = ["balanced", "balanced-performance"]
+        target = next((p for p in prefs if p in choices), None)
+        if target is None:
+          return f"Error: no matching platform_profile (choices: {' '.join(choices)})"
+        with open(PLATFORM_PROFILE, "w") as f:
+          f.write(target)
+        return "Success"
+
+      return "Error: no power profile interface found"
     except Exception as e:
       error(f"Error setting power profile: {e}")
       return f"Error setting profile: {e}"
@@ -602,7 +688,7 @@ class Plugin:
       "hybrid": HYBRID_LOG,
       "integrated": INTEGRATED_LOG,
       "install": INSTALL_LOG,
-      #"repair": REPAIR_LOG,
+      "repair": REPAIR_LOG,
       "uninstall": UNINSTALL_LOG,
       "shortcuts": SHORTCUTS_LOG,
       "sync": SYNC_LOG,
@@ -620,42 +706,38 @@ class Plugin:
       return "Error reading log file."
 
   async def get_gpu_status(self):
+    # Always returns the dict shape the UI expects -- never an error string, or the
+    # whole Quick Access panel gets gated off on non-ASUS hardware.
     status = {"connected": False, "active": False, "vendor": "none"}
-    
+
     try:
-      with open(DEBUG_LOG, "a") as dbg:
-
-        conn_path = "/sys/devices/platform/asus-nb-wmi/egpu_connected"
-        if os.path.exists(conn_path):
-          with open(conn_path, "r") as f:
-            val = f.read().strip()
-            status["connected"] = (val == "1")
-        else:
-          return "Error: egpu_connected path missing"
-
-        # Check Active Flag
-        enable_path = "/sys/devices/platform/asus-nb-wmi/egpu_enable"
-        if os.path.exists(enable_path):
-          with open(enable_path, "r") as f:
-            val = f.read().strip()
-            status["active"] = (val == "1")
-        else:
-          return "Error: egpu_enable path missing"
-
-        # Vendor check (PCI Bus)
-        try:
-          # Ask for ANY NVIDIA device on the PCI bus (Vendor ID 10de)
-          res = subprocess.check_output(["lspci", "-n", "-d", "10de:"]).decode()
-          if "10de:" in res:
-            status["vendor"] = "nvidia"
-        except:
-          if os.path.exists("/dev/dri/card1"):
-            status["vendor"] = "amd"
+      if self._has_asus_wmi():
+        # ASUS firmware path (proprietary connector docks).
+        with open(ASUS_EGPU_CONNECTED, "r") as f:
+          status["connected"] = (f.read().strip() == "1")
+        with open(ASUS_EGPU_ENABLE, "r") as f:
+          status["active"] = (f.read().strip() == "1")
+        status["vendor"] = self._detect_vendor()
+      else:
+        # Generic Thunderbolt/USB4 + PCI path (e.g. Legion Go 2 + TB5 XG Mobile).
+        vendor = self._detect_vendor()
+        status["vendor"] = vendor
+        # connected: the GPU has tunnelled onto the PCI bus, or a TB device is waiting
+        # to be authorized.
+        status["connected"] = (vendor != "none") or self._thunderbolt_device_attached()
+        # active: drivers bound and a usable DRM node exists.
+        if vendor == "nvidia":
+          status["active"] = os.path.exists("/sys/module/nvidia") and self._nvidia_drm_present()
+        elif vendor == "amd":
+          status["active"] = os.path.exists("/dev/dri/card1")
 
     except Exception as e:
       error(f"CRITICAL PYTHON ERROR in get_gpu_status: {e}")
-      with open(DEBUG_LOG, "a") as dbg:
-        dbg.write(f"CRITICAL ERROR: {e}\n")
+      try:
+        with open(DEBUG_LOG, "a") as dbg:
+          dbg.write(f"CRITICAL ERROR: {e}\n")
+      except Exception:
+        pass
       return status
 
     return status
@@ -697,7 +779,7 @@ class Plugin:
       "hybrid": HYBRID_LOG,
       "integrated": INTEGRATED_LOG,
       "install": INSTALL_LOG,
-      #"repair": REPAIR_LOG,
+      "repair": REPAIR_LOG,
       "uninstall": UNINSTALL_LOG,
       "shortcuts": SHORTCUTS_LOG,
       "sync": SYNC_LOG,

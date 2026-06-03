@@ -4,8 +4,17 @@ OS_TYPE=$2
 PRIMARY_USER=$(ps -o user= -C steam | head -n 1 | xargs)
 [ -z "$PRIMARY_USER" ] && PRIMARY_USER="deck"
 
-# Check if the ASUS WMI interface says the eGPU is actually connected
-ACTIVE=$(cat /sys/devices/platform/asus-nb-wmi/egpu_enable 2>/dev/null || echo "0")
+# Determine whether the eGPU is actually present. On ASUS hardware the WMI flag is
+# authoritative; otherwise (generic TB/USB4 docks) fall back to PCI enumeration.
+if [ -e /sys/devices/platform/asus-nb-wmi/egpu_enable ]; then
+  ACTIVE=$(cat /sys/devices/platform/asus-nb-wmi/egpu_enable 2>/dev/null || echo "0")
+else
+  if lspci -d 10de: 2>/dev/null | grep -q .; then
+    ACTIVE=1
+  else
+    ACTIVE=0
+  fi
+fi
 
 if [ "$ACTIVE" -eq 0 ]; then
     echo "Failsafe triggered: XG Mobile is not physically connected."

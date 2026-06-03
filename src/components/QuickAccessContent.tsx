@@ -303,15 +303,15 @@ export const QuickAccessContent = () => {
         </PanelSection>
       )}
 
-      {/* UNIVERSAL ASUS WMI CONTROLS */}
-      <PanelSection title="ASUS Hardware Controls">
+      {/* POWER / THERMAL CONTROLS (ASUS WMI or generic ACPI platform_profile) */}
+      <PanelSection title="Power & Thermal">
         <PanelSectionRow>
           <div style={{ marginBottom: "6px", fontSize: "14px", opacity: 0.8 }}>
             Active Power Profile
           </div>
           {powerProfile === "Error" || powerProfile === "Unknown" ? (
             <div style={{ color: "#ffab40", fontSize: "12px", fontStyle: "italic", padding: "4px 0" }}>
-              Unable to read motherboard WMI policy.
+              Power profile control not available on this device.
             </div>
           ) : (
             <Dropdown
@@ -325,7 +325,7 @@ export const QuickAccessContent = () => {
                 const newProfile = option.data;
                 setPowerProfile(newProfile);
                 await call("set_power_profile", { profile: newProfile });
-                toaster.toast({ title: "ASUS Profile", body: `Set to ${newProfile}` });
+                toaster.toast({ title: "Power Profile", body: `Set to ${newProfile}` });
               }}
             />
           )}
