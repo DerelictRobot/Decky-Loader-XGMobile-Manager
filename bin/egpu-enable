@@ -123,7 +123,7 @@ else
   # 'user' security level; it is a no-op when TB security is auto/none (already authorized).
   # boltctl is preferred for 'secure' level (key storage) -- enroll listed devices if present.
   if command -v boltctl >/dev/null 2>&1; then
-    for uuid in $(boltctl list 2>/dev/null | awk '/uuid:/ {print $2}'); do
+    for uuid in $(boltctl list 2>/dev/null | awk '/uuid:/ {print $NF}'); do
       echo "Enrolling Thunderbolt device $uuid via boltctl..."
       boltctl enroll "$uuid" 2>/dev/null || boltctl authorize "$uuid" 2>/dev/null || true
     done
@@ -138,7 +138,28 @@ else
 fi
 echo 1 > /sys/bus/pci/rescan
 
-sleep 2
+# Wait for the eGPU to actually tunnel onto the PCI bus before loading modules.
+# Over USB4/Thunderbolt this can take several seconds -- a fixed `sleep 2` raced ahead
+# of enumeration and modprobe failed with "No such device". (No-op for the ASUS
+# proprietary connector, which brings the link up near-instantly.)
+if [ "$VENDOR" == "nvidia" ]; then
+  PCI_WAIT=0
+  while ! lspci -d 10de: 2>/dev/null | grep -q . && [ $PCI_WAIT -lt 20 ]; do
+    echo "Waiting for NVIDIA GPU to appear on PCI bus... ($PCI_WAIT)"
+    sleep 1
+    ((PCI_WAIT++))
+  done
+  if ! lspci -d 10de: 2>/dev/null | grep -q .; then
+    echo "ERROR: NVIDIA GPU never enumerated on the PCI bus after authorization."
+    echo "Check Thunderbolt/USB4 BIOS security mode (set to auto/none) and reseat the dock."
+    exit 7
+  fi
+  echo "NVIDIA GPU present on PCI bus."
+  # Settle time for the function + audio device to register before driver bind.
+  sleep 2
+else
+  sleep 2
+fi
 
 if [[ "$OS_TYPE" == *"bazzite"* ]]; then
   if [ "$VENDOR" == "nvidia" ]; then
