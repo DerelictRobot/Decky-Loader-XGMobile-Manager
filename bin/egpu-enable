@@ -291,6 +291,68 @@ EOF"
     # No extra variables usually needed for AMD eGPUs on SteamOS
   fi
 fi
+
+# Bazzite: env var injection (SDDM is stopped so nothing holds the modules).
+# The module reload above created the DRM node; now tell gamescope to use NVIDIA.
+# Bazzite /etc is writable — no steamos-readonly dance needed.
+if [[ "$OS_TYPE" == *"bazzite"* ]]; then
+  if [ "$VENDOR" == "nvidia" ]; then
+    echo "Configuring NVIDIA rendering environment for Bazzite..."
+
+    NVIDIA_ID=$(lspci -n -d 10de: | head -n 1 | awk '{print $3}')
+    if [ -z "$NVIDIA_ID" ]; then
+      echo "ERROR: Could not detect NVIDIA GPU ID on PCIe bus. Aborting."
+      exit 6
+    fi
+    echo "NVIDIA Hardware ID: $NVIDIA_ID"
+
+    # Detect card paths by vendor ID (reliable even if card numbers shift)
+    for card in /sys/class/drm/card*; do
+      HW_VENDOR=$(cat $card/device/vendor 2>/dev/null)
+      if [ "$HW_VENDOR" == "0x10de" ]; then
+        EGPU_CARD="/dev/dri/$(basename $card)"
+      elif [ "$HW_VENDOR" == "0x1002" ] || [ "$HW_VENDOR" == "0x1022" ]; then
+        IGPU_CARD="/dev/dri/$(basename $card)"
+      fi
+    done
+
+    safe_add() {
+      grep -qF "$1" /etc/environment || echo "$1" >> /etc/environment
+    }
+    safe_add "MESA_VK_DEVICE_SELECT=$NVIDIA_ID"
+    safe_add "VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json"
+    safe_add "WLR_DRM_DEVICES=$EGPU_CARD:$IGPU_CARD"
+    safe_add "VK_LOADER_LAYERS_DISABLE=*"
+    safe_add "GAMESCOPE_DISABLE_VK_KHR_PRESENT_WAIT=1"
+
+    systemctl set-environment MESA_VK_DEVICE_SELECT=$NVIDIA_ID
+    systemctl set-environment VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+    systemctl set-environment WLR_DRM_DEVICES=$EGPU_CARD:$IGPU_CARD
+    systemctl set-environment VK_LOADER_LAYERS_DISABLE="*"
+    systemctl set-environment GAMESCOPE_DISABLE_VK_KHR_PRESENT_WAIT=1
+
+    USER_UID=$(id -u $PRIMARY_USER)
+    export DECK_BUS="XDG_RUNTIME_DIR=/run/user/$USER_UID"
+    sudo -u $PRIMARY_USER $DECK_BUS systemctl --user set-environment MESA_VK_DEVICE_SELECT=$NVIDIA_ID
+    sudo -u $PRIMARY_USER $DECK_BUS systemctl --user set-environment VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json
+    sudo -u $PRIMARY_USER $DECK_BUS systemctl --user set-environment WLR_DRM_DEVICES=$EGPU_CARD:$IGPU_CARD
+
+    PLASMA_ENV_DIR="/home/$PRIMARY_USER/.config/plasma-workspace/env"
+    sudo -u $PRIMARY_USER mkdir -p "$PLASMA_ENV_DIR"
+    sudo -u $PRIMARY_USER bash -c "cat > '$PLASMA_ENV_DIR/xgmobile-nvidia-kwin.sh' << EOF
+#!/bin/bash
+export KWIN_DRM_DEVICES=$EGPU_CARD:$IGPU_CARD
+export GBM_BACKEND=nvidia-drm
+export __GLX_VENDOR_LIBRARY_NAME=nvidia
+EOF"
+    chmod +x "$PLASMA_ENV_DIR/xgmobile-nvidia-kwin.sh"
+
+    systemctl daemon-reload
+    sudo -u $PRIMARY_USER $DECK_BUS systemctl --user daemon-reload
+    echo "Bazzite NVIDIA environment configured."
+  fi
+fi
+
 echo "Refreshing DRM session..."
 systemctl start sddm #--no-block
 
