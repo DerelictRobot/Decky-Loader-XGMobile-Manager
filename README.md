@@ -88,8 +88,44 @@ Bazzite completely strips out standard ASUS daemons (like asusd) to preserve nat
 
 **Prerequisites:**
 1. You must have [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader) installed.
-2. **SteamOS NVIDIA Users:** You must have at least **4GB of free space** on your `/home` drive and **600MB** on your root (`/`) drive.
-3. **Bazzite NVIDIA Users:** Ensure you are running an NVIDIA-specific image (e.g., bazzite-deck-nvidia).
+2. An NVIDIA-capable OS image (or, on SteamOS, the in-plugin DKMS installer). See **Platform setup** below.
+3. **SteamOS NVIDIA Users:** You must have at least **4GB of free space** on your `/home` drive and **600MB** on your root (`/`) drive.
+4. **Bazzite NVIDIA Users:** Ensure you are running an NVIDIA-specific image (e.g., `bazzite-deck-nvidia`).
+5. **Legion Go 2 / other USB4 · Thunderbolt hosts:** no ASUS firmware required — the plugin auto-detects a generic Thunderbolt/USB4 backend. You must set the BIOS USB4 security correctly (see below).
+
+### 🧩 Platform setup — Legion Go 2 & other USB4 / Thunderbolt eGPU hosts
+
+The 2025 XG Mobile (5070 Ti / 5090) connects over **Thunderbolt 5** (backward-compatible with TB4/USB4), so it works on any USB4 host — **there is no proprietary ASUS handshake to emulate.** The plugin detects this automatically and uses a generic Thunderbolt/USB4 + PCI path (authorize → PCI rescan on enable; PCI remove → deauthorize on eject). Bring-up:
+
+**1. BIOS**
+- Set **Thunderbolt / USB4 Security** to **Auto** or **None** (so the eGPU can hotplug-authorize).
+- Enable **Resizable BAR / Above-4G Decoding** if your firmware exposes it.
+
+**2. OS — an NVIDIA-capable atomic image**
+The 5070 Ti is Blackwell (GB203) and **requires the NVIDIA *open* kernel modules**, which ship in the **`bazzite-…-nvidia`** images (so no DKMS compilation is needed). On a Legion Go 2 use the handheld Game Mode flavor, **`bazzite-deck-nvidia`**. If you are already on `bazzite-deck`, rebase in place — it's atomic, reversible, and keeps your `/home`:
+
+```bash
+# Run ON THE HANDHELD (Desktop Mode → Konsole, or via SSH) — not on another computer
+rpm-ostree status                                   # confirm your current image
+sudo ostree admin pin 0                             # keep current deployment as a permanent boot fallback
+rpm-ostree rebase ostree-image-signed:docker://ghcr.io/ublue-os/bazzite-deck-nvidia:stable
+systemctl reboot
+```
+- Confirm the exact image tag at <https://bazzite.gg> first — variant names occasionally change.
+- After reboot, verify the open driver bound:
+  ```bash
+  modinfo nvidia | grep -iE 'version|license'        # expect 595.x and "Dual MIT/GPL"
+  ```
+- Roll back any time with `rpm-ostree rollback`, or pick the pinned deployment from the boot menu. (`/home` is shared across deployments, so Decky and this plugin persist in both.)
+
+> **SteamOS note:** the plugin *can* compile the open DKMS modules itself via the "Install NVIDIA Drivers" button, but SteamOS on the Legion Go 2 is unproven; `bazzite-deck-nvidia` is the recommended base.
+
+**3. Install Decky Loader (on the handheld)**
+Easiest on Bazzite is the built-in helper — run `ujust` and pick the Decky recipe, or use the **Bazzite Portal** app. Otherwise the official installer:
+```bash
+curl -L https://github.com/SteamDeckHomebrew/decky-installer/raw/main/cli/install_release.sh | sh
+```
+Reboot, then continue to **Quick Install** below. *(Run this on the handheld — it needs `systemctl` and a writable `~/homebrew`, so it will not work from a Mac/PC.)*
 
 **Quick Install:**
 Run this single command in your device's terminal (Desktop Mode or via SSH) to download and install the latest release automatically:
